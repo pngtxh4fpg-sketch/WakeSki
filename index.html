@@ -700,12 +700,12 @@ const state = {
   speed:0, maxSpeed:0, avgSpeed:0, distance:0, elapsed:0,
   t0:null,
   speedHistory:[], trackPoints:[], falls:[],
-  speedBuffer:[],         // 3-Punkt gleitender Mittelwert
+  speedBuffer:[],
   watchId:null, timerInterval:null, lastPt:null,
-  map:null, mapDetail:null, polyline:null,
+  map:null, mapDetail:null, polyline:null, startMarker:null,
   fallCount:0,
   locked:false,
-  activeFolderId:null,    // null = "Alle"
+  activeFolderId:null,
 };
 
 // ══════════════════════════════════════════
@@ -744,9 +744,15 @@ function initGPS(){
   if(!navigator.geolocation){ setGPSState('error'); return; }
   setGPSState('waiting');
   state.watchId=navigator.geolocation.watchPosition(
-    pos=>{ setGPSState('ready'); if(state.tracking) handlePosition(pos); },
-    ()=>setGPSState('error'),
-    {enableHighAccuracy:true,timeout:20000,maximumAge:0}
+    pos=>{
+      setGPSState('ready');
+      handlePosition(pos);   // IMMER – nicht nur bei state.tracking
+    },
+    err=>{
+      console.warn('GPS Fehler:',err.code,err.message);
+      setGPSState('error');
+    },
+    {enableHighAccuracy:true, timeout:20000, maximumAge:0}
   );
 }
 
@@ -755,54 +761,62 @@ function setGPSState(s){
   const dot=$('gps-dot'),lbl=$('gps-label'),btn=$('track-btn');
   dot.className='gps-dot'+(s==='ready'?' ready':s==='waiting'?' waiting':s==='error'?' error':'');
   lbl.textContent={idle:'GPS',waiting:'Suche GPS…',ready:'GPS bereit',error:'GPS fehlt'}[s];
-  btn.disabled=s!=='ready';
+  // Während Tracking den Stop-Button NIE deaktivieren – sonst kann der Nutzer den Run nicht beenden
+  if(!state.tracking) btn.disabled=s!=='ready';
 }
 
-// ── Verbesserte Geschwindigkeitsberechnung ──
-// Problem: pos.coords.speed ist auf vielen Geräten null.
-// Lösung: Fallback auf delta-basierte Berechnung (Δdistanz / Δzeit).
-// Zusatz: 3-Punkt gleitender Mittelwert eliminiert GPS-Jitter.
+// ── GPS-Position verarbeiten ──
+// Wird bei JEDEM GPS-Update aufgerufen (watchPosition-Callback).
+// Läuft auch ohne aktives Tracking, um die Karte vorab zu zentrieren.
 function handlePosition(pos){
   const now=Date.now();
   const pt={lat:pos.coords.latitude,lon:pos.coords.longitude,time:now};
 
-  let rawSpd=0;
-
-  // Primär: nativer GPS-Speed (m/s → km/h)
-  if(pos.coords.speed!==null && pos.coords.speed>=0){
-    rawSpd=pos.coords.speed*3.6;
+  // Karte immer auf aktuelle Position zentrieren (auch vor Tracking-Start)
+  if(state.map && !state.tracking){
+    state.map.setView([pt.lat,pt.lon],16,{animate:false});
   }
 
-  // Distanz und Fallback-Geschwindigkeit aus Positionsdelta
-  if(state.lastPt){
-    const dt=(now-state.lastPt.time)/1000;           // Sekunden
-    const distKm=haversine(state.lastPt,pt);          // km
+  if(!state.tracking) return;
 
-    if(dt>0 && dt<15 && distKm<0.5){                 // plausibilitätsgefiltert
-      state.distance+=distKm;
-      // Fallback wenn GPS-Speed nicht verfügbar
-      if(pos.coords.speed===null || pos.coords.speed<0){
-        rawSpd=(distKm/dt)*3600;                      // km/h
+  let rawSpd=0;
+
+  // Primär: nativer GPS-Speed (m/s → km/h). Ist auf modernen iOS/Android-Geräten zuverlässig.
+  if(pos.coords.speed !== null && pos.coords.speed >= 0){
+    rawSpd = pos.coords.speed * 3.6;
+  }
+
+  // Distanz berechnen aus Positionsdelta (immer, unabhängig vom GPS-Speed-Flag)
+  if(state.lastPt){
+    const dt = (now - state.lastPt.time) / 1000;   // Sekunden seit letztem Punkt
+    const distKm = haversine(state.lastPt, pt);     // km zwischen zwei Punkten
+
+    // Plausibilitätsfilter: max 15 Sek. Lücke, max 0.5 km pro Update (≈ 120 km/h bei 15s)
+    if(dt > 0 && dt < 15 && distKm < 0.5){
+      state.distance += distKm;
+      // Fallback-Speed aus Delta, wenn nativer GPS-Speed nicht verfügbar
+      if(pos.coords.speed === null || pos.coords.speed < 0){
+        rawSpd = (distKm / dt) * 3600;
       }
     }
   }
-  state.lastPt=pt;
+  state.lastPt = pt;
   state.trackPoints.push(pt);
 
-  // Gleitender 3-Punkt-Mittelwert
+  // 3-Punkt gleitender Mittelwert gegen GPS-Jitter
   state.speedBuffer.push(rawSpd);
-  if(state.speedBuffer.length>3) state.speedBuffer.shift();
-  state.speed=state.speedBuffer.reduce((a,b)=>a+b,0)/state.speedBuffer.length;
+  if(state.speedBuffer.length > 3) state.speedBuffer.shift();
+  state.speed = state.speedBuffer.reduce((a,b)=>a+b,0) / state.speedBuffer.length;
 
-  state.maxSpeed=Math.max(state.maxSpeed,state.speed);
-  state.speedHistory.push({speed:state.speed,time:now});
+  state.maxSpeed = Math.max(state.maxSpeed, state.speed);
+  state.speedHistory.push({speed:state.speed, time:now});
 
-  // Durchschnittsgeschwindigkeit nur bei Bewegung > 2 km/h
-  const moving=state.speedHistory.filter(p=>p.speed>2);
-  state.avgSpeed=moving.length?moving.reduce((a,b)=>a+b.speed,0)/moving.length:0;
+  // Durchschnitt nur über Punkte mit Bewegung (> 2 km/h)
+  const moving = state.speedHistory.filter(p=>p.speed>2);
+  state.avgSpeed = moving.length ? moving.reduce((a,b)=>a+b.speed,0)/moving.length : 0;
 
   updateTrackUI();
-  updateMap(pt);
+  liveMapUpdate(pt);
 }
 
 // ══════════════════════════════════════════
@@ -847,24 +861,41 @@ $('track-btn').addEventListener('click',()=>{ if(state.tracking) stopTracking();
 
 function startTracking(){
   Object.assign(state,{
-    tracking:true,t0:Date.now(),speed:0,maxSpeed:0,avgSpeed:0,distance:0,elapsed:0,
-    speedHistory:[],trackPoints:[],falls:[],fallCount:0,lastPt:null,speedBuffer:[]
+    tracking:true, t0:Date.now(), speed:0, maxSpeed:0, avgSpeed:0, distance:0, elapsed:0,
+    speedHistory:[], trackPoints:[], falls:[], fallCount:0, lastPt:null, speedBuffer:[]
   });
+
+  // Timer – jede Sekunde Zeit aktualisieren
   state.timerInterval=setInterval(()=>{
     state.elapsed=Date.now()-state.t0;
     $('m-time').textContent=fmtDur(state.elapsed);
+    // Safety-net: alle Metrics refreshen (falls GPS-Update ausgeblieben)
+    updateTrackUI();
   },1000);
 
-  // Container sichtbar machen BEVOR Map initialisiert/resized wird
+  // Map-Container sichtbar machen
   $('map-wrap').style.display='block';
-  // Kleines rAF-Delay damit der Browser den Container gerendert hat
-  requestAnimationFrame(()=>{
-    requestAnimationFrame(()=>{ ensureMapReady(); });
-  });
 
-  if(state.polyline){state.polyline.remove();state.polyline=null;}
+  // FORCE REFLOW: erzwingt synchrone Layout-Berechnung im Browser.
+  // Danach kennt Leaflet die echte Container-Größe (220px).
+  // Ohne diese Zeile sieht Leaflet width:0 / height:0.
+  void $('map-wrap').offsetHeight;
 
+  // Polyline der alten Session entfernen
+  if(state.polyline){ state.polyline.remove(); state.polyline=null; }
+  // Alte Start-Marker entfernen
+  if(state.startMarker){ state.startMarker.remove(); state.startMarker=null; }
+
+  // Map initialisieren oder resizen
+  if(!state.map){
+    initMap();
+  } else {
+    state.map.invalidateSize();
+  }
+
+  // Button-Zustand sofort setzen (nicht über setGPSState, damit kein Disable während Tracking)
   const btn=$('track-btn');
+  btn.disabled=false;
   btn.className='track-btn stop'; btn.style.animation='none';
   $('track-btn-label').textContent='Run beenden';
   showToast('⏱ Run gestartet');
@@ -873,9 +904,14 @@ function startTracking(){
 function stopTracking(){
   state.tracking=false;
   clearInterval(state.timerInterval);
+  state.timerInterval=null;
+
   const btn=$('track-btn');
-  btn.className='track-btn start'; btn.style.animation='glowPulse 3s ease-in-out infinite';
+  btn.className='track-btn start';
+  btn.style.animation='glowPulse 3s ease-in-out infinite';
   $('track-btn-label').textContent='Run starten';
+  // Button-Status wieder über GPS-State steuern
+  btn.disabled=state.gps!=='ready';
 
   if(state.speedHistory.length>3) saveCurrentRun();
   else showToast('Zu kurz – nicht gespeichert');
@@ -932,48 +968,62 @@ function updateTrackUI(){
 // ══════════════════════════════════════════
 // KARTE (Live-Track)
 // ══════════════════════════════════════════
-// Wichtig: Leaflet MUSS auf einem sichtbaren (display!=none) Container
-// initialisiert werden, sonst berechnet es Größe 0 und rendert nie.
-// Deshalb wird initMap() erst NACH dem Sichtbarmachen von map-wrap aufgerufen.
-function initMap(){
-  const el=$('map');
-  if(!el||state.map) return;
-  // Sicherstellen dass Container sichtbar ist
-  $('map-wrap').style.display='block';
+// Leaflet-Regel: L.map() darf erst aufgerufen werden nachdem der Container
+// im DOM sichtbar ist UND seine Maße vom Browser berechnet wurden.
+// Der force-reflow in startTracking() (void offsetHeight) garantiert das.
 
-  const map=L.map(el,{zoomControl:false,attributionControl:false});
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,
-    updateWhenIdle:false,keepBuffer:2}).addTo(map);
+function initMap(){
+  if(state.map) return;          // Nur einmal initialisieren
+  const el=$('map');
+  if(!el) return;
+
+  const map=L.map(el,{
+    zoomControl:false,
+    attributionControl:false,
+    fadeAnimation:false,         // Animationen aus → schnelleres Rendering auf Mobile
+    markerZoomAnimation:false,
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    maxZoom:19,
+    updateWhenIdle:false,        // Tiles laden auch beim Pannen
+    keepBuffer:2,
+  }).addTo(map);
+
   map.setView([48.2,13.5],15);
   state.map=map;
-  // Initiales invalidateSize nach erstem Paint
-  requestAnimationFrame(()=>{ map.invalidateSize(); });
+
+  // Sofortiges invalidateSize nach Init
+  map.invalidateSize();
+  // Nochmal nach 200ms falls der erste Aufruf zu früh war
+  setTimeout(()=>{ if(state.map) state.map.invalidateSize(); },200);
 }
 
-function ensureMapReady(){
-  if(!state.map){
-    initMap();
-  } else {
-    // Mehrfaches invalidateSize um Rendering-Bugs auf allen Geräten abzufangen
-    state.map.invalidateSize();
-    setTimeout(()=>state.map&&state.map.invalidateSize(),150);
-    setTimeout(()=>state.map&&state.map.invalidateSize(),400);
-  }
-}
-
-function updateMap(pt){
+// Wird bei jedem GPS-Update während des Trackings aufgerufen.
+// Zeichnet die Route als blaue Linie und folgt der Position.
+function liveMapUpdate(pt){
   if(!state.map) return;
+
   if(!state.polyline){
-    state.polyline=L.polyline([[pt.lat,pt.lon]],
-      {color:'#0a84ff',weight:4.5,opacity:.95,smoothFactor:1,lineCap:'round',lineJoin:'round'})
-      .addTo(state.map);
-    // Start-Marker
-    L.circleMarker([pt.lat,pt.lon],{radius:6,color:'#30d158',fillColor:'#30d158',fillOpacity:1,weight:2,stroke:true})
-      .addTo(state.map);
+    // Erste Linie + Start-Marker
+    state.polyline=L.polyline([[pt.lat,pt.lon]],{
+      color:'#0a84ff', weight:5, opacity:1,
+      smoothFactor:1, lineCap:'round', lineJoin:'round',
+    }).addTo(state.map);
+
+    state.startMarker=L.circleMarker([pt.lat,pt.lon],{
+      radius:7, color:'#fff', fillColor:'#30d158',
+      fillOpacity:1, weight:2,
+    }).addTo(state.map).bindTooltip('Start',{permanent:false});
+
+    // Zoom auf Startpunkt setzen
+    state.map.setView([pt.lat,pt.lon],17,{animate:false});
   } else {
+    // Linie erweitern
     state.polyline.addLatLng([pt.lat,pt.lon]);
+    // Karte der Position folgen
+    state.map.panTo([pt.lat,pt.lon],{animate:true,duration:0.8,easeLinearity:0.5});
   }
-  state.map.panTo([pt.lat,pt.lon],{animate:true,duration:0.5});
 }
 
 function initDetailMap(trackPoints,falls){
@@ -1582,15 +1632,24 @@ document.addEventListener('dragstart', e=>e.preventDefault(), {passive:false});
 // ══════════════════════════════════════════
 function launchApp(){
   $('screen-permission').style.display='none';
-  const app=$('app'); app.style.display='flex'; app.style.flexDirection='column'; app.style.height='100vh';
+  const app=$('app');
+  app.style.display='flex'; app.style.flexDirection='column'; app.style.height='100vh';
+
   goPage('track');
   initGPS();
   initMotion();
-  // Session wiederherstellen
+
+  // Karte vorab initialisieren:
+  // map-wrap kurz sichtbar machen → force reflow → Leaflet init → wieder verstecken
+  const mw=$('map-wrap');
+  mw.style.display='block';
+  void mw.offsetHeight;   // Force reflow: Browser berechnet jetzt Größe synchron
+  initMap();
+  mw.style.display='none'; // Wieder verstecken bis Tracking startet
+
+  // Abgebrochene Session wiederherstellen
   const s=DB.getSession();
-  if(s){ state.maxSpeed=s.maxSpeed||0; state.distance=s.distance||0; updateTrackUI(); }
-  // Map wird NICHT hier initialisiert – erst wenn Tracking startet
-  // (Leaflet braucht einen sichtbaren Container)
+  if(s && s.maxSpeed){ state.maxSpeed=s.maxSpeed||0; state.distance=s.distance||0; updateTrackUI(); }
 }
 
 $('perm-btn').addEventListener('click',async()=>{
