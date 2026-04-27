@@ -510,10 +510,26 @@ document.querySelectorAll('.nbt').forEach(b=>b.addEventListener('click',()=>goPa
 function initGPS(){
   if(!navigator.geolocation){setGPS('error');return;}
   setGPS('waiting');
+
+  let lastProcessed=0;
+  const MIN_INTERVAL=2000; // Mindestens 2 Sekunden zwischen zwei verarbeiteten Punkten
+
   S.watchID=navigator.geolocation.watchPosition(
-    pos=>{ setGPS('ready'); onPos(pos); },          // setGPS('ready') MUSS hier stehen → enabled den Button
+    pos=>{
+      setGPS('ready');
+      // Throttle: GPS-Updates kommen auf iOS manchmal 10x/Sek.
+      // Nur verarbeiten wenn MIN_INTERVAL seit letzter Verarbeitung vergangen.
+      const now=Date.now();
+      if(now-lastProcessed < MIN_INTERVAL) return;
+      lastProcessed=now;
+      onPos(pos);
+    },
     e=>{ console.warn('GPS Fehler:',e.code); setGPS('error'); },
-    {enableHighAccuracy:true, timeout:20000, maximumAge:0}
+    {
+      enableHighAccuracy: true,
+      timeout: 20000,
+      maximumAge: 2000,  // Gecachte Position bis zu 2 Sek. alt akzeptieren → reduziert Callback-Frequenz
+    }
   );
 }
 
