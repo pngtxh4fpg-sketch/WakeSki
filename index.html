@@ -1,304 +1,229 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <link rel="apple-touch-icon" href="1DC016FA-43FC-43F0-BC2A-E13E37A032CC.png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Run Tracker</title>
 
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"/>
-<meta name="apple-mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-<meta name="apple-mobile-web-app-title" content="WakeSki"/>
-<meta name="theme-color" content="#000000"/>
-<meta name="color-scheme" content="dark"/>
-<title>WakeSki Pro</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
-
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-input,textarea{user-select:text;-webkit-user-select:text}
-
-:root{
---bg:#000;--glass:rgba(255,255,255,.05);--gb:rgba(255,255,255,.10);--gs:rgba(255,255,255,.08);
---ac:#0a84ff;--acg:rgba(10,132,255,.30);--acl:rgba(10,132,255,.13);
---green:#30d158;--gg:rgba(48,209,88,.25);
---red:#ff453a;--rg:rgba(255,69,58,.30);
---yellow:#ffd60a;--yg:rgba(255,214,10,.25);
---tx:rgba(255,255,255,.92);--tx2:rgba(255,255,255,.55);--tx3:rgba(255,255,255,.28);
---fd:'Barlow Condensed',sans-serif;--fb:'DM Sans',sans-serif;
---nav:82px;--sb:env(safe-area-inset-bottom,0px);
-color-scheme:dark;
-}
-
-html,body{height:100%;width:100%;background:#000;color:rgba(255,255,255,.92);font-family:var(--fb);-webkit-font-smoothing:antialiased;overflow:hidden;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-#app{height:100vh;height:100dvh;display:flex;flex-direction:column;max-width:430px;margin:0 auto;position:relative;overflow:hidden}
-.page{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(--nav)+16px);display:none}
-.page.on{display:block;animation:fup .35s cubic-bezier(.34,1.28,.64,1) both}
-.page::-webkit-scrollbar{display:none}
-
-/* Animations */
-@keyframes fup  {from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
-@keyframes fin  {from{opacity:0}to{opacity:1}}
-@keyframes sup  {from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:none}}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-@keyframes rip  {0%{transform:scale(.8);opacity:.6}100%{transform:scale(2.4);opacity:0}}
-@keyframes spin {to{transform:rotate(360deg)}}
-@keyframes shk  {0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
-@keyframes glow {0%,100%{box-shadow:0 0 20px var(--acg)}50%{box-shadow:0 0 44px var(--acg)}}
-@keyframes lfill{from{width:0}to{width:100%}}
-
-/* Nav */
-#nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;height:var(--nav);background:rgba(8,8,8,.92);backdrop-filter:blur(40px) saturate(200%);-webkit-backdrop-filter:blur(40px) saturate(200%);border-top:.5px solid var(--gb);display:flex;align-items:flex-start;justify-content:space-around;z-index:200;padding:10px 0 calc(10px + var(--sb))}
-.nbt{display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;color:#8e8e93;cursor:pointer;padding:8px 20px;border-radius:14px;font-family:var(--fb);font-size:10px;font-weight:500;transition:color .2s}
-.nbt svg{width:24px;height:24px;transition:transform .2s cubic-bezier(.34,1.6,.64,1)}
-.nbt.on{color:var(--ac)}.nbt.on svg{transform:scale(1.1)}
-
-/* Buttons */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:15px 22px;border-radius:16px;border:none;cursor:pointer;font-family:var(--fb);font-size:16px;font-weight:600;transition:all .18s cubic-bezier(.34,1.4,.64,1);width:100%}
-.btn:active{transform:scale(.965)}
-.bp{background:var(--ac);color:#fff;box-shadow:0 4px 24px var(--acg)}
-.bd{background:var(--red);color:#fff;box-shadow:0 4px 24px var(--rg)}
-.bg{background:var(--gs);border:.5px solid var(--gb);color:var(--tx)}
-.bsm{padding:9px 16px;font-size:13px;border-radius:12px;width:auto}
-.inp{width:100%;background:var(--gs);border:.5px solid var(--gb);border-radius:14px;padding:14px 16px;color:var(--tx);font-family:var(--fb);font-size:16px;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none}
-.inp:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--acl)}.inp::placeholder{color:var(--tx3)}
-
-/* Screens */
-#sp{position:fixed;inset:0;z-index:1000;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 28px;animation:fin .4s ease both}
-.plogo{font-family:var(--fd);font-size:60px;font-weight:900;color:#fff;letter-spacing:2px;margin-bottom:6px;text-shadow:0 0 60px rgba(10,132,255,.5)}
-.ptag{font-size:14px;color:var(--tx2);margin-bottom:44px}
-.pit{display:flex;align-items:center;gap:16px;padding:15px 16px;background:var(--glass);border:.5px solid var(--gb);border-radius:18px;margin-bottom:10px}
-.pico{width:42px;height:42px;border-radius:11px;background:var(--acl);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--ac)}
-
-/* Track Page */
-.thdr{padding:52px 20px 0;display:flex;align-items:center;justify-content:space-between}
-.ttl{font-family:var(--fd);font-size:34px;font-weight:900}
-.gbadge{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;background:var(--glass);border:.5px solid var(--gb);font-size:12px;font-weight:500}
-.gdot{width:7px;height:7px;border-radius:50%;background:#48484a}
-.gdot.w{background:var(--yellow);animation:pulse 1.4s infinite}
-.gdot.r{background:var(--green);box-shadow:0 0 8px var(--gg)}
-.gdot.e{background:var(--red)}
-
-.swrap{display:flex;justify-content:center;padding:24px 20px 16px}
-.sring{position:relative;width:220px;height:220px;display:flex;align-items:center;justify-content:center}
-.rsvg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
-.rbg{fill:none;stroke:rgba(255,255,255,.07);stroke-width:3}
-.rfill{fill:none;stroke:var(--ac);stroke-width:3.5;stroke-linecap:round;stroke-dasharray:603;stroke-dashoffset:603;transition:stroke-dashoffset .5s cubic-bezier(.34,1.2,.64,1),stroke .3s;filter:drop-shadow(0 0 7px var(--ac))}
-.rfill.w{stroke:var(--yellow);filter:drop-shadow(0 0 7px var(--yg))}
-.rfill.d{stroke:var(--red);filter:drop-shadow(0 0 7px var(--rg))}
-.snum{font-family:var(--fd);font-size:90px;font-weight:900;line-height:1;color:#fff;letter-spacing:-2px}
-.snum.w{color:var(--yellow)}.snum.d{color:var(--red)}
-
-.mstrip{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 16px;margin-bottom:14px}
-.mc{background:var(--glass);border:.5px solid var(--gb);border-radius:14px;padding:10px 6px 9px;text-align:center}
-.mv{font-family:var(--fd);font-size:22px;font-weight:800;line-height:1;color:var(--tx)}
-.ml{font-size:9px;color:var(--tx2);margin-top:3px;text-transform:uppercase;letter-spacing:.8px}
-
-.tbtn{width:100%;height:64px;border-radius:18px;border:none;cursor:pointer;font-family:var(--fb);font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .22s cubic-bezier(.34,1.4,.64,1)}
-.tbtn.go{background:var(--ac);color:#fff;box-shadow:0 6px 28px var(--acg);animation:glow 3s infinite}
-.tbtn.st{background:var(--red);color:#fff;box-shadow:0 6px 28px var(--rg)}
-
-.mwrap{margin:0 16px 12px;border-radius:18px;overflow:hidden;border:.5px solid var(--gb);position:relative}
-#lmap{width:100%;height:220px;background:#0a0d12}
-
-/* Leaflet Dark */
-.leaflet-container{background:#0a0d12 !important}
-.leaflet-tile{filter:brightness(.65) saturate(.7) hue-rotate(200deg)}
-.leaflet-control-attribution{display:none}
+body { margin:0; font-family:sans-serif; background:#111; color:#fff; }
+#map { height:50vh; }
+#ui { padding:15px; }
+button { padding:10px 15px; font-size:16px; }
+.stat { margin:5px 0; }
 </style>
 </head>
 <body>
 
-<div id="sp">
-  <div class="plogo">WakeSki</div>
-  <div class="ptag">Wasserski · Wakeboard · Wakesurf</div>
-  <div class="plist">
-    <div class="pit"><div class="pico">📍</div><div><div class="pt">GPS & Standort</div><div class="ps">Tracking & Geschwindigkeit</div></div></div>
-    <div class="pit"><div class="pico">⚡</div><div><div class="pt">Sensoren</div><div class="ps">Sturzerkennung</div></div></div>
-  </div>
-  <button class="btn bp" id="perm-btn">Berechtigungen erteilen</button>
+<div id="map"></div>
+
+<div id="ui">
+  <button id="btn">Start</button>
+  <div class="stat">Speed: <span id="speed">0</span> km/h</div>
+  <div class="stat">Avg: <span id="avg">0</span> km/h</div>
+  <div class="stat">Max: <span id="max">0</span> km/h</div>
+  <div class="stat">Dist: <span id="dist">0</span> km</div>
+  <div class="stat">Time: <span id="time">0:00</span></div>
 </div>
 
-<div id="app" style="display:none">
-  <div id="toast"></div>
-  <div id="page-track" class="page">
-    <div class="thdr">
-      <div class="ttl">Track</div>
-      <div class="gbadge"><div class="gdot" id="gdot"></div><span id="glbl">Suche GPS…</span></div>
-    </div>
-    <div class="swrap">
-      <div class="sring">
-        <svg class="rsvg" viewBox="0 0 200 200">
-          <circle class="rbg" cx="100" cy="100" r="96"/>
-          <circle class="rfill" cx="100" cy="100" r="96" id="rfill"/>
-        </svg>
-        <div style="display:flex;flex-direction:column;align-items:center;z-index:1">
-          <div class="snum" id="snum">0</div>
-          <div style="font-size:14px;color:var(--tx2)">km/h</div>
-        </div>
-      </div>
-    </div>
-    <div class="mstrip">
-      <div class="mc"><div class="mv" id="mmax">0.0</div><div class="ml">Max</div></div>
-      <div class="mc"><div class="mv" id="mavg">0.0</div><div class="ml">Avg</div></div>
-      <div class="mc"><div class="mv" id="mdist">0</div><div class="ml" id="mdistl">m</div></div>
-      <div class="mc"><div class="mv" id="mtime">0:00</div><div class="ml">Zeit</div></div>
-    </div>
-    <div style="padding:0 16px;margin-bottom:12px">
-      <button class="tbtn go" id="tbtn" disabled><span id="tbtl">Run starten</span></button>
-    </div>
-    <div class="mwrap" id="mwrap" style="visibility:hidden;height:0">
-      <div id="lmap"></div>
-    </div>
-  </div>
-  </div>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-'use strict';
-
-const $ = id => document.getElementById(id);
-const S = {
-  gps:'idle', tracking:false, speed:0, maxSpd:0, avgSpd:0, dist:0, 
-  elapsed:0, t0:null, buf:[], hist:[], pts:[], lastPt:null,
-  timerID:null, map:null, pmkr:null, smkr:null, segs:[], prevLL:null
+const S={
+  tracking:false,
+  t0:0,
+  speed:0,
+  maxSpd:0,
+  avgSpd:0,
+  dist:0,
+  elapsed:0,
+  buf:[],
+  hist:[],
+  pts:[],
+  lastPt:null,
+  map:null,
+  smkr:null,
+  pmkr:null,
+  prevLL:null,
+  segs:[]
 };
 
-const hav = (a, b) => {
-  const R = 6371, dLat = (b.lat - a.lat) * Math.PI / 180, dLon = (b.lon - a.lon) * Math.PI / 180;
-  const x = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180) * Math.cos(b.lat*Math.PI/180) * Math.sin(dLon/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
-};
+function $(id){return document.getElementById(id);}
 
-function onPos(pos){
-  const now = Date.now();
-  const lat = pos.coords.latitude, lon = pos.coords.longitude;
+function fmtT(ms){
+  const s=Math.floor(ms/1000);
+  const m=Math.floor(s/60);
+  return m+':'+String(s%60).padStart(2,'0');
+}
 
-  // Karte vor Tracking-Start zentrieren & Position zeigen
-  if(S.map && !S.tracking){
-    S.map.setView([lat,lon], 16, {animate:false});
-    if(!S.pmkr){
-      S.pmkr = L.circleMarker([lat,lon], {radius:9, color:'#fff', weight:2.5, fillColor:'#0a84ff', fillOpacity:1}).addTo(S.map);
-    } else {
-      S.pmkr.setLatLng([lat,lon]);
-      S.pmkr.setStyle({fillColor:'#0a84ff'});
-    }
-    setGPS('ready');
-    return;
-  }
-  if(!S.tracking) return;
+function hav(a,b){
+  const R=6371;
+  const dLat=(b.lat-a.lat)*Math.PI/180;
+  const dLon=(b.lon-a.lon)*Math.PI/180;
+  const lat1=a.lat*Math.PI/180;
+  const lat2=b.lat*Math.PI/180;
 
-  let raw = 0;
-  if(typeof pos.coords.speed === 'number' && pos.coords.speed >= 0) raw = pos.coords.speed * 3.6;
+  const x=Math.sin(dLat/2)**2+
+    Math.sin(dLon/2)**2*Math.cos(lat1)*Math.cos(lat2);
 
-  const curPt = {lat, lon, time:now};
-  if(S.lastPt){
-    const dt = (now - S.lastPt.time) / 1000;
-    const dk = hav(S.lastPt, curPt);
-    const curSpd = dt > 0 ? (dk / dt) * 3600 : 0;
-    
-    if(dt > 0 && curSpd < 150){
-      S.dist += dk;
-      if(raw === 0) raw = curSpd;
-    }
-  }
-  S.lastPt = curPt;
-  S.pts.push(curPt);
+  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
 
-  S.buf.push(raw);
-  if(S.buf.length > 3) S.buf.shift();
-  S.speed = S.buf.reduce((a,b) => a+b, 0) / S.buf.length;
-
-  if(S.speed > S.maxSpd) S.maxSpd = S.speed;
-  S.hist.push({s: +(S.speed.toFixed(1)), t: now});
-  const mv = S.hist.filter(p => p.s > 2);
-  S.avgSpd = mv.length ? mv.reduce((a,b) => a + b.s, 0) / mv.length : 0;
-
-  updateDOM();
-  mapAddPoint(lat, lon, S.speed);
+function spdColor(s){
+  if(s<6) return '#30d158';
+  if(s<12) return '#ffd60a';
+  return '#ff3b30';
 }
 
 function initMap(){
   if(S.map) return;
-  const wrap = $('mwrap');
-  wrap.style.visibility = 'visible';
-  wrap.style.height = '220px';
-  wrap.style.marginBottom = '12px';
 
-  const map = L.map('lmap', { zoomControl:false, attributionControl:false });
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(map);
-  S.map = map;
+  const map=L.map('map',{zoomControl:false});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    maxZoom:19
+  }).addTo(map);
 
-  requestAnimationFrame(() => { 
-    if(S.map) S.map.invalidateSize(); 
-    setTimeout(() => { if(S.map) S.map.invalidateSize(); }, 300);
+  map.setView([48.2,13.5],15);
+  S.map=map;
+
+  requestAnimationFrame(()=>{
+    requestAnimationFrame(()=>map.invalidateSize());
   });
 }
 
-function startT(){
-  S.tracking = true; S.t0 = Date.now();
-  S.speed = 0; S.maxSpd = 0; S.avgSpd = 0; S.dist = 0; S.elapsed = 0;
-  S.buf = []; S.hist = []; S.pts = []; S.lastPt = null;
-
-  initMap();
-  if(S.segs) S.segs.forEach(s => s.remove()); S.segs = [];
-  if(S.smkr) S.smkr.remove(); S.smkr = null;
-
-  S.timerID = setInterval(() => {
-    S.elapsed = Date.now() - S.t0;
-    $('mtime').textContent = Math.floor(S.elapsed/60000) + ":" + (Math.floor(S.elapsed/1000)%60).toString().padStart(2,'0');
-    updateDOM(); 
-  }, 1000);
-
-  const b = $('tbtn'); b.className = 'tbtn st';
-  $('tbtl').textContent = 'Run beenden';
-  
-  $('mwrap').style.visibility = 'visible';
-  $('mwrap').style.height = '220px';
-  
-  if(S.map) setTimeout(() => S.map.invalidateSize(), 150);
-  updateDOM();
-}
-
-// Hilfsfunktionen (Speed-Farbe, DOM-Update etc. wie gehabt)
-function updateDOM(){
-  $('snum').textContent = Math.round(S.speed);
-  $('mmax').textContent = S.maxSpd.toFixed(1);
-  $('mavg').textContent = S.avgSpd.toFixed(1);
-  const d = S.dist;
-  if(d < 0.1){ $('mdist').textContent = Math.round(d*1000); $('mdistl').textContent = 'm'; }
-  else { $('mdist').textContent = d.toFixed(2); $('mdistl').textContent = 'km'; }
-  $('rfill').style.strokeDashoffset = 603 * (1 - Math.min(S.speed/80, 1));
-}
-
-function mapAddPoint(lat, lon, spd){
+function mapAddPoint(lat,lon,spd){
   if(!S.map) return;
+
   if(!S.smkr){
-    S.smkr = L.circleMarker([lat,lon], {radius:8, color:'#fff', weight:2, fillColor:'#30d158', fillOpacity:1}).addTo(S.map);
+    S.smkr=L.circleMarker([lat,lon],{
+      radius:8,color:'#fff',weight:2,fillColor:'#30d158',fillOpacity:1
+    }).addTo(S.map);
+
+    S.map.setView([lat,lon],17);
+  } else {
+    S.smkr.setLatLng([lat,lon]);
   }
+
   if(S.prevLL){
-    const seg = L.polyline([S.prevLL, [lat,lon]], {color:'#0a84ff', weight:5}).addTo(S.map);
+    const seg=L.polyline([S.prevLL,[lat,lon]],{
+      color:spdColor(spd),
+      weight:5
+    }).addTo(S.map);
+
     S.segs.push(seg);
   }
-  S.prevLL = [lat,lon];
-  if(S.pmkr) S.pmkr.setLatLng([lat,lon]);
-  S.map.panTo([lat,lon]);
+
+  S.prevLL=[lat,lon];
+
+  if(!S.pmkr){
+    S.pmkr=L.circleMarker([lat,lon],{
+      radius:9,color:'#fff',weight:2,
+      fillColor:spdColor(spd),fillOpacity:1
+    }).addTo(S.map);
+  } else {
+    S.pmkr.setLatLng([lat,lon]);
+    S.pmkr.setStyle({fillColor:spdColor(spd)});
+  }
+
+  S.map.panTo([lat,lon],{animate:true});
 }
 
-function setGPS(s){
-  const d = $('gdot');
-  d.className = 'gdot ' + (s==='ready'?'r':'w');
-  $('glbl').textContent = s==='ready'?'GPS bereit':'Suche GPS…';
-  $('tbtn').disabled = (s !== 'ready');
+function updateUI(){
+  $('speed').textContent=S.speed.toFixed(1);
+  $('avg').textContent=S.avgSpd.toFixed(1);
+  $('max').textContent=S.maxSpd.toFixed(1);
+  $('dist').textContent=S.dist.toFixed(2);
+  $('time').textContent=fmtT(S.elapsed);
 }
 
-$('tbtn').addEventListener('click', () => S.tracking ? location.reload() : startT());
-$('perm-btn').addEventListener('click', () => {
-  $('sp').style.display = 'none';
-  $('app').style.display = 'flex';
-  initMap();
-  navigator.geolocation.watchPosition(onPos, console.error, {enableHighAccuracy:true});
+function onPos(pos){
+  const now=Date.now();
+  const lat=pos.coords.latitude;
+  const lon=pos.coords.longitude;
+
+  if(!S.tracking){
+    if(S.map) S.map.setView([lat,lon],16);
+    return;
+  }
+
+  let raw=0;
+  if(pos.coords.speed!=null){
+    raw=pos.coords.speed*3.6;
+  }
+
+  const cur={lat,lon,time:now,speed:raw};
+
+  if(S.lastPt){
+    const dt=(now-S.lastPt.time)/1000;
+    const dk=hav(S.lastPt,cur);
+
+    if(dt>0 && dt<20 && dk<0.5){
+      S.dist+=dk;
+      if(raw===0) raw=(dk/dt)*3600;
+    }
+  }
+
+  S.lastPt=cur;
+  S.pts.push(cur);
+
+  S.buf.push(raw);
+  if(S.buf.length>3) S.buf.shift();
+
+  S.speed=S.buf.reduce((a,b)=>a+b,0)/S.buf.length;
+
+  if(S.speed>S.maxSpd) S.maxSpd=S.speed;
+
+  S.hist.push({s:S.speed,t:now});
+  const mv=S.hist.filter(p=>p.s>2);
+
+  S.avgSpd=mv.length
+    ? mv.reduce((a,b)=>a+b.s,0)/mv.length
+    : 0;
+
+  updateUI();
+
+  mapAddPoint(lat,lon,S.speed);
+}
+
+function start(){
+  S.tracking=true;
+  S.t0=Date.now();
+
+  S.speed=0;
+  S.maxSpd=0;
+  S.avgSpd=0;
+  S.dist=0;
+  S.elapsed=0;
+  S.buf=[];
+  S.hist=[];
+  S.pts=[];
+  S.lastPt=null;
+
+  setInterval(()=>{
+    S.elapsed=Date.now()-S.t0;
+    updateUI();
+  },1000);
+}
+
+$('btn').onclick=()=>{
+  if(!S.tracking){
+    start();
+    $('btn').textContent='Stop';
+  } else {
+    location.reload();
+  }
+};
+
+initMap();
+
+navigator.geolocation.watchPosition(onPos,console.error,{
+  enableHighAccuracy:true,
+  maximumAge:0,
+  timeout:5000
 });
 </script>
+
 </body>
 </html>
