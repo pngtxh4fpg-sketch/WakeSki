@@ -1,228 +1,1158 @@
 <!DOCTYPE html>
+
 <html lang="de">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Run Tracker</title>
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="WakeSki"/>
+<meta name="theme-color" content="#000000"/>
+<meta name="color-scheme" content="dark"/>
+<title>WakeSki Pro</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
-body { margin:0; font-family:sans-serif; background:#111; color:#fff; }
-#map { height:50vh; }
-#ui { padding:15px; }
-button { padding:10px 15px; font-size:16px; }
-.stat { margin:5px 0; }
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+input,textarea{user-select:text;-webkit-user-select:text}
+
+:root{
+–bg:#000;–glass:rgba(255,255,255,.05);–gb:rgba(255,255,255,.10);–gs:rgba(255,255,255,.08);
+–ac:#0a84ff;–acg:rgba(10,132,255,.30);–acl:rgba(10,132,255,.13);
+–green:#30d158;–gg:rgba(48,209,88,.25);
+–red:#ff453a;–rg:rgba(255,69,58,.30);
+–yellow:#ffd60a;–yg:rgba(255,214,10,.25);
+–tx:rgba(255,255,255,.92);–tx2:rgba(255,255,255,.55);–tx3:rgba(255,255,255,.28);
+–fd:‘Barlow Condensed’,sans-serif;–fb:‘DM Sans’,sans-serif;
+–nav:82px;–sb:env(safe-area-inset-bottom,0px);
+color-scheme:dark;
+}
+
+html,body{height:100%;width:100%;background:#000;color:rgba(255,255,255,.92);font-family:var(–fb);-webkit-font-smoothing:antialiased;overflow:hidden;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+
+#app{height:100vh;height:100dvh;display:flex;flex-direction:column;max-width:430px;margin:0 auto;position:relative;overflow:hidden}
+
+.page{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(–nav)+16px);display:none}
+.page.on{display:block;animation:fup .35s cubic-bezier(.34,1.28,.64,1) both}
+.page::-webkit-scrollbar{display:none}
+
+/* ── Animations ── */
+@keyframes fup  {from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes fin  {from{opacity:0}to{opacity:1}}
+@keyframes sup  {from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes rip  {0%{transform:scale(.8);opacity:.6}100%{transform:scale(2.4);opacity:0}}
+@keyframes spin {to{transform:rotate(360deg)}}
+@keyframes shk  {0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+@keyframes glow {0%,100%{box-shadow:0 0 20px var(–acg)}50%{box-shadow:0 0 44px var(–acg)}}
+@keyframes lfill{from{width:0}to{width:100%}}
+
+/* ── Nav ── */
+#nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;height:var(–nav);background:rgba(8,8,8,.92);backdrop-filter:blur(40px) saturate(200%);-webkit-backdrop-filter:blur(40px) saturate(200%);border-top:.5px solid var(–gb);display:flex;align-items:flex-start;justify-content:space-around;z-index:200;padding:10px 0 calc(10px + var(–sb))}
+.nbt{display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;color:#8e8e93;cursor:pointer;padding:8px 20px;border-radius:14px;font-family:var(–fb);font-size:10px;font-weight:500;transition:color .2s}
+.nbt svg{width:24px;height:24px;transition:transform .2s cubic-bezier(.34,1.6,.64,1)}
+.nbt.on{color:var(–ac)}.nbt.on svg{transform:scale(1.1)}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:15px 22px;border-radius:16px;border:none;cursor:pointer;font-family:var(–fb);font-size:16px;font-weight:600;transition:all .18s cubic-bezier(.34,1.4,.64,1);width:100%}
+.btn:active{transform:scale(.965)}
+.bp{background:var(–ac);color:#fff;box-shadow:0 4px 24px var(–acg)}
+.bd{background:var(–red);color:#fff;box-shadow:0 4px 24px var(–rg)}
+.bg{background:var(–gs);border:.5px solid var(–gb);color:var(–tx)}
+.bsm{padding:9px 16px;font-size:13px;border-radius:12px;width:auto}
+.inp{width:100%;background:var(–gs);border:.5px solid var(–gb);border-radius:14px;padding:14px 16px;color:var(–tx);font-family:var(–fb);font-size:16px;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none}
+.inp:focus{border-color:var(–ac);box-shadow:0 0 0 3px var(–acl)}.inp::placeholder{color:var(–tx3)}
+
+/* ── Permission ── */
+#sp{position:fixed;inset:0;z-index:1000;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 28px;animation:fin .4s ease both}
+.plogo{font-family:var(–fd);font-size:60px;font-weight:900;color:#fff;letter-spacing:2px;margin-bottom:6px;text-shadow:0 0 60px rgba(10,132,255,.5)}
+.ptag{font-size:14px;color:var(–tx2);margin-bottom:44px}
+.plist{width:100%;display:flex;flex-direction:column;gap:10px;margin-bottom:32px}
+.pit{display:flex;align-items:center;gap:16px;padding:15px 16px;background:var(–glass);border:.5px solid var(–gb);border-radius:18px;animation:fup .4s cubic-bezier(.34,1.2,.64,1) both}
+.pit:nth-child(1){animation-delay:.08s}.pit:nth-child(2){animation-delay:.16s}.pit:nth-child(3){animation-delay:.24s}
+.pico{width:42px;height:42px;border-radius:11px;background:var(–acl);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pico svg{width:20px;height:20px;color:var(–ac)}
+.pt{font-size:15px;font-weight:600;margin-bottom:2px}.ps{font-size:12px;color:var(–tx2)}
+.pbw{width:100%;animation:fup .4s .32s cubic-bezier(.34,1.2,.64,1) both}
+
+/* ── Track page ── */
+.thdr{padding:52px 20px 0;display:flex;align-items:center;justify-content:space-between}
+.ttl{font-family:var(–fd);font-size:34px;font-weight:900}
+.gbadge{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;background:var(–glass);border:.5px solid var(–gb);font-size:12px;font-weight:500}
+.gdot{width:7px;height:7px;border-radius:50%;background:#48484a;flex-shrink:0}
+.gdot.w{background:var(–yellow);animation:pulse 1.4s ease-in-out infinite}
+.gdot.r{background:var(–green);box-shadow:0 0 8px var(–gg)}
+.gdot.e{background:var(–red)}
+
+/* Speed ring */
+.swrap{display:flex;justify-content:center;padding:24px 20px 16px}
+.sring{position:relative;width:220px;height:220px;display:flex;align-items:center;justify-content:center}
+.sring .rsvg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+.rbg{fill:none;stroke:rgba(255,255,255,.07);stroke-width:3}
+.rfill{fill:none;stroke:var(–ac);stroke-width:3.5;stroke-linecap:round;stroke-dasharray:603;stroke-dashoffset:603;transition:stroke-dashoffset .5s cubic-bezier(.34,1.2,.64,1),stroke .3s;filter:drop-shadow(0 0 7px var(–ac))}
+.rfill.w{stroke:var(–yellow);filter:drop-shadow(0 0 7px var(–yg))}
+.rfill.d{stroke:var(–red);filter:drop-shadow(0 0 7px var(–rg))}
+.sinn{display:flex;flex-direction:column;align-items:center;z-index:1}
+.snum{font-family:var(–fd);font-size:90px;font-weight:900;line-height:1;color:#fff;transition:color .3s;letter-spacing:-2px}
+.snum.w{color:var(–yellow)}.snum.d{color:var(–red)}
+.sunit{font-size:14px;color:var(–tx2);margin-top:-4px;letter-spacing:1px}
+
+/* Metrics */
+.mstrip{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 16px;margin-bottom:14px}
+.mc{background:var(–glass);border:.5px solid var(–gb);border-radius:14px;padding:10px 6px 9px;text-align:center}
+.mv{font-family:var(–fd);font-size:22px;font-weight:800;line-height:1;color:var(–tx)}
+.ml{font-size:9px;color:var(–tx2);margin-top:3px;text-transform:uppercase;letter-spacing:.8px}
+
+/* Track button */
+.tbw{padding:0 16px;margin-bottom:12px}
+.tbtn{width:100%;height:64px;border-radius:18px;border:none;cursor:pointer;font-family:var(–fb);font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .22s cubic-bezier(.34,1.4,.64,1)}
+.tbtn.go{background:var(–ac);color:#fff;box-shadow:0 6px 28px var(–acg);animation:glow 3s ease-in-out infinite}
+.tbtn.st{background:var(–red);color:#fff;box-shadow:0 6px 28px var(–rg);animation:none}
+.tbtn:active{transform:scale(.96)}
+.tbtn:disabled{opacity:.3;cursor:not-allowed;transform:none;animation:none;box-shadow:none}
+
+/* Map */
+/* Map-Wrapper: Karte ist IMMER mit korrekter Höhe im DOM.
+max-height:0 + overflow:hidden versteckt sie visuell, aber
+das Kind-Element #lmap hat trotzdem height:220px – Leaflet liest die Kind-Größe. */
+.mwrap{
+margin:0 16px;border-radius:18px;border:.5px solid var(–gb);position:relative;
+overflow:hidden;
+max-height:0;margin-bottom:0;opacity:0;pointer-events:none;
+transition:max-height .35s ease, margin-bottom .35s ease, opacity .35s ease;
+}
+.mwrap.visible{
+max-height:240px;margin-bottom:12px;opacity:1;pointer-events:auto;
+}
+/* #lmap hat IMMER feste Höhe – egal ob Wrapper max-height:0 ist.
+Leaflet initialisiert sich gegen dieses Element, nicht den Wrapper. */
+#lmap{width:100%;height:220px;background:#0a0d12;display:block;}
+.mlbl{position:absolute;bottom:8px;right:8px;z-index:500;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);border:.5px solid var(–gb);border-radius:8px;padding:3px 8px;font-size:10px;color:var(–tx2)}
+
+/* Map legend */
+.mleg{position:absolute;top:8px;right:8px;z-index:500;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);border:.5px solid var(–gb);border-radius:8px;padding:6px 8px;display:flex;flex-direction:column;gap:3px}
+.mleg-row{display:flex;align-items:center;gap:5px;font-size:9px;color:var(–tx2)}
+.mleg-dot{width:8px;height:5px;border-radius:2px;flex-shrink:0}
+
+/* Fall alert */
+.falert{margin:0 16px 12px;padding:13px 16px;background:rgba(255,69,58,.10);border:.5px solid rgba(255,69,58,.35);border-radius:16px;display:flex;align-items:center;gap:12px}
+.fat{font-weight:700;color:var(–red);font-size:15px}.fas{font-size:12px;color:var(–tx2);margin-top:1px}
+
+/* ── History ── */
+.phdr{padding:52px 20px 12px;display:flex;align-items:center;justify-content:space-between}
+.phdt{font-family:var(–fd);font-size:34px;font-weight:900}
+.ftabs{padding:0 16px 12px;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.ftabs::-webkit-scrollbar{display:none}
+.ftab{flex-shrink:0;display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:20px;font-size:13px;font-weight:500;background:var(–glass);border:.5px solid var(–gb);color:var(–tx2);cursor:pointer;white-space:nowrap;transition:all .15s}
+.ftab.on{background:var(–ac);border-color:var(–ac);color:#fff}
+.fdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.rcard{margin:0 16px 10px;padding:16px;background:var(–glass);border:.5px solid var(–gb);border-radius:24px;animation:fup .38s cubic-bezier(.34,1.2,.64,1) both}
+.rctop{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.rcl{flex:1;min-width:0;cursor:pointer}
+.rname{font-weight:600;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.rdate{font-size:12px;color:var(–tx2)}
+.rfb{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:500;color:var(–tx2);background:rgba(255,255,255,.05);margin-bottom:5px}
+.rfbd{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.rsb{font-family:var(–fd);font-size:34px;font-weight:800;line-height:1;text-align:right}
+.rsu{font-size:11px;color:var(–tx2);text-align:right}
+.rmenu{width:28px;height:28px;border-radius:50%;background:var(–gs);border:.5px solid var(–gb);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(–tx2);flex-shrink:0;margin-left:8px}
+.rmenu:active{opacity:.5}
+.rstats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.rs{background:rgba(255,255,255,.03);border-radius:10px;padding:8px 6px;text-align:center;cursor:pointer}
+.rsv{font-size:14px;font-weight:600}.rsl{font-size:9px;color:var(–tx2);margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
+.empty{display:flex;flex-direction:column;align-items:center;padding:60px 20px;color:var(–tx2)}
+.emico{font-size:52px;margin-bottom:12px;opacity:.45}
+
+/* ── Settings ── */
+.pcard{margin:0 16px 14px;padding:18px;background:var(–glass);border:.5px solid var(–gb);border-radius:28px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:border-color .18s}
+.pcard:active{border-color:rgba(10,132,255,.4)}
+.sav{width:58px;height:58px;border-radius:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(–fd);font-size:26px;font-weight:800;color:#fff}
+.snm{font-size:18px;font-weight:700}.sst{font-size:12px;color:var(–tx2);margin-top:2px}.shi{font-size:11px;color:var(–tx3);margin-top:5px}
+.ssec{margin:0 16px 14px;background:var(–glass);border:.5px solid var(–gb);border-radius:18px;overflow:hidden}
+.srow{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:.5px solid var(–gb);cursor:pointer;transition:background .12s}
+.srow:last-child{border-bottom:none}.srow:active{background:var(–gs)}
+.srico{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px}
+.srt{font-size:15px;font-weight:500}.srs{font-size:12px;color:var(–tx2);margin-top:1px}
+
+/* ── Detail ── */
+#pd{position:fixed;inset:0;z-index:150;background:#000;overflow-y:auto;display:none}
+#pd::-webkit-scrollbar{display:none}
+.dhdr{padding:52px 20px 16px;display:flex;align-items:flex-start;gap:12px}
+.bbtn{width:36px;height:36px;border-radius:50%;background:var(–glass);border:.5px solid var(–gb);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-top:2px}
+.bbtn:active{transform:scale(.88)}.bbtn svg{width:18px;height:18px;color:var(–ac)}
+.dtitle{font-family:var(–fd);font-size:28px;font-weight:800;line-height:1.2}.ddate{font-size:12px;color:var(–tx2);margin-top:3px}
+.dhero{margin:0 16px 14px;padding:22px;background:linear-gradient(135deg,rgba(10,132,255,.12) 0%,transparent 70%);border:.5px solid rgba(10,132,255,.22);border-radius:28px;text-align:center}
+.dspd{font-family:var(–fd);font-size:80px;font-weight:900;line-height:1;color:#fff;margin-bottom:3px}
+.dspdl{font-size:13px;color:var(–tx2);letter-spacing:1px;text-transform:uppercase}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 16px 14px}
+.dst{padding:15px;background:var(–glass);border:.5px solid var(–gb);border-radius:16px}
+.dstv{font-family:var(–fd);font-size:30px;font-weight:800;color:var(–tx);line-height:1}
+.dstl{font-size:11px;color:var(–tx2);margin-top:4px;text-transform:uppercase;letter-spacing:.7px}
+.slbl{font-size:11px;font-weight:600;color:var(–tx2);text-transform:uppercase;letter-spacing:1.1px;padding:0 20px;margin:4px 0 8px}
+.dmw{margin:0 16px 14px;border-radius:18px;overflow:hidden;border:.5px solid var(–gb);height:240px}
+.dmw #dmap{width:100%;height:100%;background:#0a0d12}
+.cwrap{margin:0 16px 14px;padding:14px;background:var(–glass);border:.5px solid var(–gb);border-radius:18px}
+.flist{margin:0 16px 14px;display:flex;flex-direction:column;gap:8px}
+.fit{display:flex;align-items:center;gap:12px;padding:13px 15px;background:rgba(255,69,58,.07);border:.5px solid rgba(255,69,58,.2);border-radius:14px}
+.fitt{font-size:14px;font-weight:600}.fits{font-size:12px;color:var(–tx2);margin-top:1px}
+.delbtn{margin:0 16px 40px;padding:14px;width:calc(100% - 32px);background:rgba(255,69,58,.10);border:.5px solid rgba(255,69,58,.28);border-radius:14px;color:var(–red);font-family:var(–fb);font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+.delbtn:active{transform:scale(.97)}
+
+/* ── Water lock ── */
+#wl{position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.97);display:none;flex-direction:column;align-items:center;justify-content:center}
+#wl.on{display:flex;animation:fin .25s ease both}
+.wlico{font-size:58px;margin-bottom:14px}.wltitle{font-family:var(–fd);font-size:36px;font-weight:900;margin-bottom:8px}
+.wlsub{font-size:15px;color:var(–tx2);text-align:center;max-width:260px;line-height:1.5;margin-bottom:40px}
+.wlbtn{width:190px;height:190px;border-radius:50%;background:rgba(255,255,255,.04);border:2px solid rgba(255,255,255,.10);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;touch-action:none}
+.wlprog{position:absolute;bottom:0;left:0;height:4px;background:var(–ac);width:0;border-radius:2px}
+.wlprog.go{animation:lfill 2s linear both}
+.wlwaves{position:absolute;inset:0;border-radius:50%;pointer-events:none}
+.wlwave{position:absolute;inset:0;border-radius:50%;border:2px solid var(–ac);opacity:0}
+.wlbtn.p .wlwave{animation:rip 1s ease-out infinite}
+.wlbtn.p .wlwave:nth-child(2){animation-delay:.3s}
+.wlbtn.p .wlwave:nth-child(3){animation-delay:.6s}
+.wlhint{font-size:14px;color:var(–tx2);margin-top:12px}
+
+/* ── Sheets ── */
+.ov{position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.72);backdrop-filter:blur(14px);display:flex;align-items:flex-end;justify-content:center;padding-bottom:calc(var(–sb)+16px);animation:fin .2s ease both}
+.sh{width:100%;max-width:430px;background:rgba(18,18,20,.98);border:.5px solid var(–gb);border-radius:26px 26px 18px 18px;animation:sup .3s cubic-bezier(.34,1.3,.64,1) both;overflow:hidden}
+.shhdr{padding:18px 20px 12px;border-bottom:.5px solid var(–gb)}
+.shht{font-size:17px;font-weight:700}.shhs{font-size:12px;color:var(–tx2);margin-top:2px}
+.shrow{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:.5px solid rgba(255,255,255,.04);cursor:pointer;font-size:15px;font-weight:500;transition:background .12s}
+.shrow:last-child{border-bottom:none}.shrow:active{background:var(–gs)}
+.shrow.r{color:var(–red)}.shrow.c{color:var(–tx2);border-top:.5px solid var(–gb)}
+.shico{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px}
+.shdot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.shchk{margin-left:auto;width:20px;height:20px;border-radius:50%;background:var(–ac);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.swatches{display:flex;gap:10px;flex-wrap:wrap}
+.sw{width:34px;height:34px;border-radius:50%;cursor:pointer;flex-shrink:0;transition:transform .18s cubic-bezier(.34,1.6,.64,1);position:relative}
+.sw.on{box-shadow:0 0 0 2.5px #fff,0 0 0 5px rgba(255,255,255,.25);transform:scale(1.12)}
+.sw.on::after{content:‘✓’;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;font-weight:700}
+.cov{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.72);backdrop-filter:blur(14px);display:flex;align-items:flex-end;justify-content:center;padding-bottom:calc(var(–sb)+20px);animation:fin .2s ease both}
+.csh{width:100%;max-width:430px;padding:22px 20px;background:rgba(22,22,24,.98);border:.5px solid var(–gb);border-radius:26px 26px 18px 18px;animation:sup .3s cubic-bezier(.34,1.3,.64,1) both}
+.ct{font-size:18px;font-weight:700;margin-bottom:5px}.cs{font-size:14px;color:var(–tx2);margin-bottom:18px}
+#toast{position:fixed;top:58px;left:50%;transform:translateX(-50%) translateY(-6px);z-index:800;background:rgba(24,24,26,.95);border:.5px solid var(–gb);border-radius:20px;padding:9px 18px;font-size:14px;font-weight:500;white-space:nowrap;backdrop-filter:blur(20px);pointer-events:none;transition:opacity .28s,transform .28s;opacity:0}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.lbl{font-size:11px;font-weight:600;color:var(–tx2);text-transform:uppercase;letter-spacing:1px;margin-bottom:7px}
+
+/* ── Leaflet dark ── */
+.leaflet-container{background:#0a0d12 !important}
+.leaflet-tile{filter:brightness(.65) saturate(.7) hue-rotate(200deg)}
+.leaflet-popup-content-wrapper{background:rgba(10,13,20,.95);border:.5px solid var(–gb);border-radius:10px;color:var(–tx)}
+.leaflet-popup-tip{background:rgba(10,13,20,.95)}
+.leaflet-control-zoom a{background:rgba(10,13,20,.9) !important;color:var(–tx) !important;border-color:var(–gb) !important}
+.leaflet-control-attribution{display:none}
 </style>
+
 </head>
 <body>
 
-<div id="map"></div>
+<!-- Permission screen -->
 
-<div id="ui">
-  <button id="btn">Start</button>
-  <div class="stat">Speed: <span id="speed">0</span> km/h</div>
-  <div class="stat">Avg: <span id="avg">0</span> km/h</div>
-  <div class="stat">Max: <span id="max">0</span> km/h</div>
-  <div class="stat">Dist: <span id="dist">0</span> km</div>
-  <div class="stat">Time: <span id="time">0:00</span></div>
+<div id="sp">
+  <div class="plogo">WakeSki</div>
+  <div class="ptag">Wasserski · Wakeboard · Wakesurf</div>
+  <div class="plist">
+    <div class="pit"><div class="pico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg></div><div><div class="pt">GPS & Standort</div><div class="ps">Geschwindigkeit, Distanz, Strecke</div></div></div>
+    <div class="pit"><div class="pico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22V12M12 12L7 7M12 12l5-5M2 17l5-3M17 14l5 3"/></svg></div><div><div class="pt">Bewegungssensoren</div><div class="ps">Sturzerkennung via Beschleunigungssensor</div></div></div>
+    <div class="pit"><div class="pico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/></svg></div><div><div class="pt">Lokaler Speicher</div><div class="ps">Fahrten offline speichern & exportieren</div></div></div>
+  </div>
+  <div class="pbw">
+    <button class="btn bp" id="perm-btn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      Berechtigungen erteilen
+    </button>
+  </div>
 </div>
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<!-- App -->
+
+<div id="app" style="display:none">
+  <div id="toast"></div>
+
+  <!-- Track -->
+
+  <div id="page-track" class="page">
+    <div class="thdr">
+      <div class="ttl">Track</div>
+      <div class="gbadge"><div class="gdot" id="gdot"></div><span id="glbl">Warte…</span></div>
+    </div>
+    <div class="swrap">
+      <div class="sring">
+        <svg class="rsvg" viewBox="0 0 200 200">
+          <circle class="rbg"   cx="100" cy="100" r="96"/>
+          <circle class="rfill" cx="100" cy="100" r="96" id="rfill"/>
+        </svg>
+        <div class="sinn">
+          <div class="snum" id="snum">0</div>
+          <div class="sunit">km/h</div>
+        </div>
+      </div>
+    </div>
+    <div class="mstrip">
+      <div class="mc"><div class="mv" id="mmax">0.0</div><div class="ml">Max</div></div>
+      <div class="mc"><div class="mv" id="mavg">0.0</div><div class="ml">Avg</div></div>
+      <div class="mc"><div class="mv" id="mdist">0</div><div class="ml" id="mdistl">m</div></div>
+      <div class="mc"><div class="mv" id="mtime">0:00</div><div class="ml">Zeit</div></div>
+    </div>
+    <div class="tbw">
+      <button class="tbtn go" id="tbtn" disabled>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+        <span id="tbtl">Run starten</span>
+      </button>
+    </div>
+    <div style="padding:0 16px;margin-bottom:12px">
+      <button class="btn bg" id="lbtn" style="display:flex;align-items:center;gap:9px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        Wassergeschützt sperren
+      </button>
+    </div>
+    <!-- Map: immer 220px hoch im DOM (Leaflet braucht korrekte Größe beim Init).
+         Vor Tracking visuell versteckt via CSS-Klasse (opacity:0, max-height:0).
+         Kein display:none / height:0 – das macht Leaflet kaputt. -->
+    <div class="mwrap" id="mwrap">
+      <div id="lmap"></div>
+      <div class="mlbl">Live Track</div>
+      <div class="mleg">
+        <div class="mleg-row"><div class="mleg-dot" style="background:#30d158"></div>Schnell</div>
+        <div class="mleg-row"><div class="mleg-dot" style="background:#ffd60a"></div>Mittel</div>
+        <div class="mleg-row"><div class="mleg-dot" style="background:#ff453a"></div>Langsam</div>
+      </div>
+    </div>
+    <div class="falert" id="falert" style="display:none">
+      <div style="font-size:26px;flex-shrink:0">💥</div>
+      <div><div class="fat" id="fat">Sturz erkannt!</div><div class="fas" id="fas"></div></div>
+    </div>
+  </div>
+
+  <!-- History -->
+
+  <div id="page-history" class="page">
+    <div class="phdr">
+      <div class="phdt">Verlauf</div>
+      <button class="btn bsm bg" id="nfbtn" style="display:flex;align-items:center;gap:6px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        Ordner
+      </button>
+    </div>
+    <div class="ftabs" id="ftabs"></div>
+    <div id="rlist"></div>
+  </div>
+
+  <!-- Settings -->
+
+  <div id="page-settings" class="page">
+    <div class="phdr" style="padding-bottom:16px"><div class="phdt">Einstellungen</div></div>
+    <div class="pcard" id="pcrd">
+      <div class="sav" id="sav">W</div>
+      <div style="flex:1;min-width:0">
+        <div class="snm" id="snm">Fahrer</div>
+        <div class="sst" id="sst">0 Fahrten · 0 km</div>
+        <div class="shi">Tippen zum Bearbeiten</div>
+      </div>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--tx3);flex-shrink:0"><polyline points="9,18 15,12 9,6"/></svg>
+    </div>
+    <div class="ssec">
+      <div class="srow" id="sexport"><div class="srico" style="background:rgba(10,132,255,.15)">📤</div><div><div class="srt">Daten exportieren</div><div class="srs">Profil + Fahrten als JSON</div></div></div>
+      <div class="srow" id="simport"><div class="srico" style="background:rgba(48,209,88,.15)">📥</div><div><div class="srt">Daten importieren</div><div class="srs">JSON-Backup laden</div></div></div>
+    </div>
+    <div class="ssec">
+      <div class="srow" id="sclear"><div class="srico" style="background:rgba(255,69,58,.15)">🗑️</div><div><div class="srt">Alle Fahrten löschen</div><div class="srs">Ordner und Profil bleiben</div></div></div>
+    </div>
+    <div class="ssec">
+      <div class="srow" style="cursor:default"><div class="srico" style="background:rgba(255,255,255,.06)">ℹ️</div><div><div class="srt">WakeSki Pro v2.2</div><div class="srs">GPS-Tracker · Farbkarte · Sturzerkennung</div></div></div>
+    </div>
+    <div style="height:20px"></div>
+  </div>
+
+  <!-- Detail -->
+
+  <div id="pd">
+    <div class="dhdr">
+      <button class="bbtn" id="bbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg></button>
+      <div><div class="dtitle" id="dtitle">Run</div><div class="ddate" id="ddate"></div></div>
+    </div>
+    <div id="dcont"></div>
+  </div>
+
+  <!-- Nav -->
+
+  <nav id="nav">
+    <button class="nbt on" data-pg="track">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polygon points="10,8 16,12 10,16" fill="currentColor" stroke="none"/></svg>
+      Track
+    </button>
+    <button class="nbt" data-pg="history">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      Verlauf
+    </button>
+    <button class="nbt" data-pg="settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06-.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      Mehr
+    </button>
+  </nav>
+</div>
+
+<!-- Water lock -->
+
+<div id="wl">
+  <div class="wlico">💧</div>
+  <div class="wltitle">Gesperrt</div>
+  <div class="wlsub">Bildschirm gesperrt. Kreis 2 Sekunden halten zum Entsperren.</div>
+  <div class="wlbtn" id="wlbtn">
+    <div class="wlwaves"><div class="wlwave"></div><div class="wlwave"></div><div class="wlwave"></div></div>
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+    <div class="wlprog" id="wlprog"></div>
+  </div>
+  <div class="wlhint">Gedrückt halten</div>
+</div>
+
+<!-- Confirm -->
+
+<div class="cov" id="cov" style="display:none">
+  <div class="csh">
+    <div class="ct" id="ctxt"></div>
+    <div class="cs" id="cstxt"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn bg" id="cno">Abbrechen</button>
+      <button class="btn bd" id="cyes">Bestätigen</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fimp" accept=".json" style="display:none"/>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-const S={
-  tracking:false,
-  t0:0,
-  speed:0,
-  maxSpd:0,
-  avgSpd:0,
-  dist:0,
-  elapsed:0,
-  buf:[],
-  hist:[],
-  pts:[],
-  lastPt:null,
-  map:null,
-  smkr:null,
-  pmkr:null,
-  prevLL:null,
-  segs:[]
+'use strict';
+
+/* ═══ SERVICE WORKER ════════════════════════════ */
+if('serviceWorker' in navigator){
+  const sw=`const C='ws-v5';
+self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.add(location.href)).then(()=>self.skipWaiting()));});
+self.addEventListener('activate',e=>{
+  e.waitUntil(
+    caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k))))
+    .then(()=>clients.claim())
+  );
+});
+self.addEventListener('fetch',e=>{
+  if(e.request.method!=='GET')return;
+  // Network-first für HTML (immer aktuellste Version), Cache-first für Assets
+  const isHtml=e.request.headers.get('accept')&&e.request.headers.get('accept').includes('text/html');
+  if(isHtml){
+    e.respondWith(fetch(e.request).then(r=>{if(r.ok)caches.open(C).then(c=>c.put(e.request,r.clone()));return r;}).catch(()=>caches.match(e.request)));
+  } else {
+    e.respondWith(caches.match(e.request).then(h=>h||fetch(e.request).then(r=>{if(r.ok)caches.open(C).then(c=>c.put(e.request,r.clone()));return r;})));
+  }
+});`;
+  navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:'application/javascript'}))).catch(()=>{});
+}
+
+/* ═══ DB ════════════════════════════════════════ */
+const DB={
+  g:k=>{try{return JSON.parse(localStorage.getItem(k));}catch{return null;}},
+  s:(k,v)=>localStorage.setItem(k,JSON.stringify(v)),
+  getRuns:    ()=>DB.g('ws_runs')||[],
+  saveRuns:   r=>DB.s('ws_runs',r),
+  addRun:     r=>{const a=DB.getRuns();a.unshift(r);DB.saveRuns(a);},
+  updateRun:  (id,p)=>{const a=DB.getRuns(),i=a.findIndex(r=>r.id===id);if(i>=0){a[i]={...a[i],...p};DB.saveRuns(a);}},
+  deleteRun:  id=>DB.saveRuns(DB.getRuns().filter(r=>r.id!==id)),
+  clearRuns:  ()=>localStorage.removeItem('ws_runs'),
+  getFolders:   ()=>DB.g('ws_folders')||[],
+  saveFolders:  f=>DB.s('ws_folders',f),
+  addFolder:    f=>{const a=DB.getFolders();a.push(f);DB.saveFolders(a);},
+  updateFolder: (id,p)=>{const a=DB.getFolders(),i=a.findIndex(x=>x.id===id);if(i>=0){a[i]={...a[i],...p};DB.saveFolders(a);}},
+  deleteFolder: id=>{DB.saveFolders(DB.getFolders().filter(x=>x.id!==id));const r=DB.getRuns();r.forEach(x=>{if(x.folderId===id)x.folderId=null;});DB.saveRuns(r);},
+  getProfile:  ()=>DB.g('ws_profile')||{name:'Fahrer',initial:'F',color:'#0a84ff'},
+  saveProfile: p=>DB.s('ws_profile',p),
+  getSession:  ()=>DB.g('ws_session'),
+  saveSession: s=>DB.s('ws_session',s),
+  clearSession:()=>localStorage.removeItem('ws_session'),
+  exportAll:   ()=>({profile:DB.getProfile(),folders:DB.getFolders(),runs:DB.getRuns(),at:Date.now()}),
+  importAll:   d=>{if(d.profile)DB.saveProfile(d.profile);if(d.folders)DB.saveFolders(d.folders);if(d.runs)DB.saveRuns(d.runs);},
 };
 
-function $(id){return document.getElementById(id);}
-
-function fmtT(ms){
-  const s=Math.floor(ms/1000);
-  const m=Math.floor(s/60);
-  return m+':'+String(s%60).padStart(2,'0');
-}
-
+/* ═══ UTILS ══════════════════════════════════════ */
 function hav(a,b){
-  const R=6371;
-  const dLat=(b.lat-a.lat)*Math.PI/180;
-  const dLon=(b.lon-a.lon)*Math.PI/180;
-  const lat1=a.lat*Math.PI/180;
-  const lat2=b.lat*Math.PI/180;
-
-  const x=Math.sin(dLat/2)**2+
-    Math.sin(dLon/2)**2*Math.cos(lat1)*Math.cos(lat2);
-
+  const R=6371,dLat=(b.lat-a.lat)*Math.PI/180,dLon=(b.lon-a.lon)*Math.PI/180;
+  const x=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLon/2)**2;
   return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
 }
+const fmtT=ms=>{const s=Math.floor(ms/1e3),m=Math.floor(s/60);return`${m}:${(s%60).toString().padStart(2,'0')}`;};
+const fmtD=ts=>new Date(ts).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const shd=(col,a)=>{const n=parseInt(col.slice(1),16),c=v=>Math.min(255,Math.max(0,v));return'#'+[c((n>>16)+a),c(((n>>8)&0xff)+a),c((n&0xff)+a)].map(v=>v.toString(16).padStart(2,'0')).join('');};
+const $=id=>document.getElementById(id);
 
-function spdColor(s){
-  if(s<6) return '#30d158';
-  if(s<12) return '#ffd60a';
-  return '#ff3b30';
+/* ═══ BLOCK SELECTION ════════════════════════════ */
+document.addEventListener('contextmenu',e=>e.preventDefault(),{passive:false});
+document.addEventListener('selectstart',e=>{if(!(e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement))e.preventDefault();},{passive:false});
+document.addEventListener('dragstart',e=>e.preventDefault(),{passive:false});
+
+/* ═══ STATE ══════════════════════════════════════ */
+// Einzige State-Variable – übersichtlich und ohne Doppelungen
+const S={
+  gps:'idle', tracking:false,
+  speed:0, maxSpd:0, avgSpd:0, dist:0, elapsed:0, t0:null,
+  buf:[], hist:[], pts:[], falls:[], fc:0, lastPt:null,
+  timerID:null, watchID:null,
+  map:null, segs:[], prevLL:null, smkr:null, pmkr:null, dmkr:null,
+  dmap:null,
+  locked:false, folderID:null, page:'track',
+};
+
+/* ═══ TOAST ══════════════════════════════════════ */
+let _tt;
+const toast=(m,d=2600)=>{const e=$('toast');e.textContent=m;e.classList.add('on');clearTimeout(_tt);_tt=setTimeout(()=>e.classList.remove('on'),d);};
+
+/* ═══ NAVIGATION ════════════════════════════════ */
+function goPage(pg){
+  S.page=pg;
+  document.querySelectorAll('.page').forEach(el=>el.classList.toggle('on',el.id==='page-'+pg));
+  document.querySelectorAll('.nbt').forEach(b=>b.classList.toggle('on',b.dataset.pg===pg));
+  if(pg==='history') renderHistory();
+  if(pg==='settings') renderSettings();
+}
+document.querySelectorAll('.nbt').forEach(b=>b.addEventListener('click',()=>goPage(b.dataset.pg)));
+
+/* ═══ GPS ════════════════════════════════════════ */
+function initGPS(){
+  if(!navigator.geolocation){setGPS('error');return;}
+  setGPS('waiting');
+
+  let lastProcessed=0;
+  const MIN_INTERVAL=2000; // Mindestens 2 Sekunden zwischen zwei verarbeiteten Punkten
+
+  S.watchID=navigator.geolocation.watchPosition(
+    pos=>{
+      setGPS('ready');
+      // Throttle: GPS-Updates kommen auf iOS manchmal 10x/Sek.
+      // Nur verarbeiten wenn MIN_INTERVAL seit letzter Verarbeitung vergangen.
+      const now=Date.now();
+      if(now-lastProcessed < MIN_INTERVAL) return;
+      lastProcessed=now;
+      onPos(pos);
+    },
+    e=>{ console.warn('GPS Fehler:',e.code); setGPS('error'); },
+    {
+      enableHighAccuracy: true,
+      timeout: 20000,
+      maximumAge: 2000,  // Gecachte Position bis zu 2 Sek. alt akzeptieren → reduziert Callback-Frequenz
+    }
+  );
 }
 
+function setGPS(s){
+  S.gps=s;
+  const d=$('gdot'),l=$('glbl'),b=$('tbtn');
+  d.className='gdot'+(s==='r'||s==='ready'?'r':s==='waiting'?'w':s==='error'?'e':'');
+  // reset className properly
+  d.className='gdot';
+  if(s==='ready'||s==='r') d.classList.add('r');
+  else if(s==='waiting')   d.classList.add('w');
+  else if(s==='error')     d.classList.add('e');
+  l.textContent={idle:'GPS',waiting:'Suche GPS…',ready:'GPS bereit',error:'GPS fehlt'}[s]||s;
+  if(!S.tracking) b.disabled=(s!=='ready');
+}
+
+/* ═══ POSITION HANDLER ═══════════════════════════
+   Hier passiert die gesamte Live-Berechnung.
+   Wird bei JEDEM GPS-Update aufgerufen.
+   Speed + Distanz + Karte + Metriken – alles hier.
+════════════════════════════════════════════════ */
+function onPos(pos){
+  const now=Date.now();
+  const lat=pos.coords.latitude, lon=pos.coords.longitude;
+
+  // Karte vor Tracking-Start zentrieren
+  if(!S.tracking){
+    if(S.map) S.map.setView([lat,lon],16,{animate:false});
+    return;
+  }
+
+  // ── Speed: nativer GPS-Wert (m/s → km/h) ──────────────────────
+  let raw=0;
+  if(typeof pos.coords.speed==='number' && pos.coords.speed>=0){
+    raw=pos.coords.speed*3.6;
+  }
+
+  // ── Distanz aus Positionsdelta + Fallback-Speed ─────────────────
+  const curPt={lat,lon,time:now};
+  if(S.lastPt){
+    const dt=(now-S.lastPt.time)/1e3;
+    const dk=hav(S.lastPt,curPt);
+    if(dt>0 && dt<=20 && dk<0.5){
+      S.dist+=dk;
+      if(raw===0) raw=(dk/dt)*3600;
+    }
+  }
+  S.lastPt=curPt;
+  S.pts.push(curPt);
+
+  // ── 3-Punkt gleitender Mittelwert ──────────────────────────────
+  S.buf.push(raw);
+  if(S.buf.length>3) S.buf.shift();
+  S.speed=S.buf.reduce((a,b)=>a+b,0)/S.buf.length;
+
+  // Max / Avg (immer aktualisieren, auch bei 0)
+  if(S.speed>S.maxSpd) S.maxSpd=S.speed;
+  S.hist.push({s:+(S.speed.toFixed(1)),t:now});
+  const mv=S.hist.filter(p=>p.s>2);
+  S.avgSpd=mv.length?mv.reduce((a,b)=>a+b.s,0)/mv.length:0;
+
+  // ── DOM-Update synchron ────────────────────────────────────────
+  updateDOM();
+
+  // ── Kartenlinie ────────────────────────────────────────────────
+  if(S.map) mapAddPoint(lat,lon,S.speed);
+}
+
+/* ═══ DOM UPDATE ════════════════════════════════
+   Aktualisiert Speed-Ring + alle 4 Metriken.
+   Wird sekündlich vom Timer UND bei jedem GPS-Update aufgerufen.
+════════════════════════════════════════════════ */
+function updateDOM(){
+  const spd=S.speed, MAX=80;
+
+  // Ring
+  const num=$('snum'), ring=$('rfill');
+  num.textContent=Math.round(spd);
+  const cls='snum'+(spd>60?' d':spd>40?' w':'');
+  if(num.className!==cls) num.className=cls;
+  ring.style.strokeDashoffset=603*(1-Math.min(spd/MAX,1));
+  const rc='rfill'+(spd>60?' d':spd>40?' w':'');
+  if(ring.className!==rc) ring.className=rc;
+
+  // Metrics – immer 1 Nachkommastelle
+  $('mmax').textContent=S.maxSpd.toFixed(1);
+  $('mavg').textContent=S.avgSpd.toFixed(1);
+
+  const d=S.dist;
+  if(d<0.1){
+    $('mdist').textContent=Math.round(d*1000);
+    $('mdistl').textContent='m';
+  } else {
+    $('mdist').textContent=d.toFixed(2);
+    $('mdistl').textContent='km';
+  }
+  // Zeit wird vom Timer gesetzt
+}
+
+/* ═══ MAP ════════════════════════════════════════
+
+   STRATEGIE (iOS Safari getestet):
+   - #lmap hat IMMER height:220px in CSS → Leaflet liest korrekte Größe
+   - Visuell versteckt über .mwrap CSS (opacity:0; max-height:0) ohne Größe zu ändern
+   - Leaflet wird einmalig mit setTimeout(150) initialisiert NACH dem ersten Browser-Paint
+   - invalidateSize() beim ersten GPS-Punkt für sicheres Re-Render
+════════════════════════════════════════════════ */
 function initMap(){
   if(S.map) return;
 
-  const map=L.map('map',{zoomControl:false});
+  // Kein getBoundingClientRect-Hack nötig – #lmap hat per CSS immer 220px Höhe
+  const map=L.map('lmap',{
+    zoomControl:false,
+    attributionControl:false,
+    fadeAnimation:false,
+    markerZoomAnimation:false,
+    // KEIN preferCanvas – CircleMarker funktioniert mit SVG-Renderer zuverlässiger auf iOS
+  });
+
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    maxZoom:19
+    maxZoom:19, updateWhenIdle:false, keepBuffer:4,
   }).addTo(map);
 
   map.setView([48.2,13.5],15);
   S.map=map;
 
-  requestAnimationFrame(()=>{
-    requestAnimationFrame(()=>map.invalidateSize());
-  });
+  // invalidateSize nach Paint – stellt sicher dass Leaflet die tatsächliche Größe kennt
+  setTimeout(()=>{ if(S.map) S.map.invalidateSize(); }, 200);
+  console.log('[MAP] Leaflet initialized. Container size:', document.getElementById('lmap').getBoundingClientRect().width, 'x', document.getElementById('lmap').getBoundingClientRect().height);
+}
+
+// Farbe für Geschwindigkeit: rot (0 km/h) → gelb (25 km/h) → grün (50+ km/h)
+// Interpoliert zwischen #ff453a → #ffd60a → #30d158
+function spdColor(spd){
+  const t=Math.min(Math.max(spd,0)/50,1);
+  let r,g,b;
+  if(t<0.5){
+    // rot → gelb (t=0..0.5)
+    const u=t*2;
+    r=255; g=Math.round(69+(214-69)*u); b=Math.round(58+(10-58)*u);
+  } else {
+    // gelb → grün (t=0.5..1)
+    const u=(t-0.5)*2;
+    r=Math.round(255+(48-255)*u); g=Math.round(214+(209-214)*u); b=Math.round(10+(88-10)*u);
+  }
+  return`rgb(${r},${g},${b})`;
 }
 
 function mapAddPoint(lat,lon,spd){
   if(!S.map) return;
 
+  // Start-Marker beim ersten Punkt
   if(!S.smkr){
+    // invalidateSize vor erstem Render – stellt sicher dass Map-Größe korrekt ist
+    S.map.invalidateSize();
     S.smkr=L.circleMarker([lat,lon],{
-      radius:8,color:'#fff',weight:2,fillColor:'#30d158',fillOpacity:1
+      radius:8, color:'#fff', weight:2.5,
+      fillColor:'#30d158', fillOpacity:1,
     }).addTo(S.map);
-
-    S.map.setView([lat,lon],17);
-  } else {
-    S.smkr.setLatLng([lat,lon]);
+    S.map.setView([lat,lon], 17, {animate:false});
   }
 
+  // Farbiges Segment vom letzten zum aktuellen Punkt
   if(S.prevLL){
+    const col=spdColor(spd);
     const seg=L.polyline([S.prevLL,[lat,lon]],{
-      color:spdColor(spd),
-      weight:5
+      color:col, weight:5, opacity:1, lineCap:'round', lineJoin:'round',
     }).addTo(S.map);
-
     S.segs.push(seg);
   }
-
   S.prevLL=[lat,lon];
 
+  // Positions-Marker (zeigt aktuelle Geschwindigkeitsfarbe)
+  const col=spdColor(spd);
   if(!S.pmkr){
-    S.pmkr=L.circleMarker([lat,lon],{
-      radius:9,color:'#fff',weight:2,
-      fillColor:spdColor(spd),fillOpacity:1
-    }).addTo(S.map);
+    S.pmkr=L.circleMarker([lat,lon],{radius:9,color:'#fff',weight:2.5,fillColor:col,fillOpacity:1}).addTo(S.map);
   } else {
     S.pmkr.setLatLng([lat,lon]);
-    S.pmkr.setStyle({fillColor:spdColor(spd)});
+    S.pmkr.setStyle({fillColor:col});
   }
 
-  S.map.panTo([lat,lon],{animate:true});
+  // Karte folgt sanft
+  S.map.panTo([lat,lon],{animate:true,duration:1.0,easeLinearity:0.4});
 }
 
-function updateUI(){
-  $('speed').textContent=S.speed.toFixed(1);
-  $('avg').textContent=S.avgSpd.toFixed(1);
-  $('max').textContent=S.maxSpd.toFixed(1);
-  $('dist').textContent=S.dist.toFixed(2);
-  $('time').textContent=fmtT(S.elapsed);
+function clearMapSession(){
+  S.segs.forEach(s=>s.remove()); S.segs=[];
+  if(S.smkr){S.smkr.remove();S.smkr=null;}
+  if(S.pmkr){S.pmkr.remove();S.pmkr=null;}
+  S.prevLL=null;
 }
 
-function onPos(pos){
-  const now=Date.now();
-  const lat=pos.coords.latitude;
-  const lon=pos.coords.longitude;
+/* ═══ TRACKING ══════════════════════════════════ */
+$('tbtn').addEventListener('click',()=>S.tracking?stopT():startT());
 
-  if(!S.tracking){
-    if(S.map) S.map.setView([lat,lon],16);
-    return;
-  }
+function startT(){
+  // State zurücksetzen
+  S.tracking=true; S.t0=Date.now();
+  S.speed=0; S.maxSpd=0; S.avgSpd=0; S.dist=0; S.elapsed=0;
+  S.buf=[]; S.hist=[]; S.pts=[]; S.falls=[]; S.fc=0; S.lastPt=null;
 
-  let raw=0;
-  if(pos.coords.speed!=null){
-    raw=pos.coords.speed*3.6;
-  }
+  // Map Session leeren und Karte einblenden
+  clearMapSession();
+  $('mwrap').classList.add('visible');
 
-  const cur={lat,lon,time:now,speed:raw};
+  // invalidateSize JETZT – nach dem CSS-Klassen-Wechsel hat der Browser die richtige Größe
+  // Kleines Timeout damit der CSS-Transition-Paint abgeschlossen ist
+  setTimeout(()=>{ if(S.map) S.map.invalidateSize(); }, 350);
 
-  if(S.lastPt){
-    const dt=(now-S.lastPt.time)/1000;
-    const dk=hav(S.lastPt,cur);
-
-    if(dt>0 && dt<20 && dk<0.5){
-      S.dist+=dk;
-      if(raw===0) raw=(dk/dt)*3600;
-    }
-  }
-
-  S.lastPt=cur;
-  S.pts.push(cur);
-
-  S.buf.push(raw);
-  if(S.buf.length>3) S.buf.shift();
-
-  S.speed=S.buf.reduce((a,b)=>a+b,0)/S.buf.length;
-
-  if(S.speed>S.maxSpd) S.maxSpd=S.speed;
-
-  S.hist.push({s:S.speed,t:now});
-  const mv=S.hist.filter(p=>p.s>2);
-
-  S.avgSpd=mv.length
-    ? mv.reduce((a,b)=>a+b.s,0)/mv.length
-    : 0;
-
-  updateUI();
-
-  mapAddPoint(lat,lon,S.speed);
-}
-
-function start(){
-  S.tracking=true;
-  S.t0=Date.now();
-
-  S.speed=0;
-  S.maxSpd=0;
-  S.avgSpd=0;
-  S.dist=0;
-  S.elapsed=0;
-  S.buf=[];
-  S.hist=[];
-  S.pts=[];
-  S.lastPt=null;
-
-  setInterval(()=>{
+  // Timer: Zeit + alle Metriken sekündlich aktualisieren
+  S.timerID=setInterval(()=>{
     S.elapsed=Date.now()-S.t0;
-    updateUI();
+    $('mtime').textContent=fmtT(S.elapsed);
+    updateDOM();
   },1000);
+
+  // Button
+  const b=$('tbtn');
+  b.disabled=false; b.className='tbtn st';
+  $('tbtl').textContent='Run beenden';
+
+  // Metriken sofort auf 0 rendern
+  updateDOM();
+  toast('⏱ Run gestartet');
 }
 
-$('btn').onclick=()=>{
-  if(!S.tracking){
-    start();
-    $('btn').textContent='Stop';
+function stopT(){
+  S.tracking=false;
+  clearInterval(S.timerID); S.timerID=null;
+
+  const b=$('tbtn');
+  b.className='tbtn go'; b.disabled=(S.gps!=='ready');
+  $('tbtl').textContent='Run starten';
+
+  if(S.hist.length>3) saveRun();
+  else toast('Zu kurz – nicht gespeichert');
+}
+
+function saveRun(){
+  DB.addRun({
+    id:Date.now().toString(),
+    name:`Run ${new Date().toLocaleDateString('de-DE')}`,
+    folderId:null, startTime:S.t0, duration:S.elapsed,
+    maxSpeed:S.maxSpd, avgSpeed:S.avgSpd, distance:S.dist,
+    speedHistory:S.hist, trackPoints:S.pts, falls:S.falls,
+  });
+  DB.clearSession();
+  toast(`✅ Gespeichert · ${S.maxSpd.toFixed(1)} km/h max`);
+}
+
+/* ═══ MOTION (Sturzerkennung) ════════════════════ */
+function initMotion(){
+  if(!window.DeviceMotionEvent) return;
+  const h=e=>{
+    if(!S.tracking) return;
+    const ag=e.accelerationIncludingGravity||e.acceleration; if(!ag) return;
+    const g=Math.sqrt((ag.x||0)**2+(ag.y||0)**2+(ag.z||0)**2)/9.81;
+    if(g>2.5&&S.speed>8){
+      const now=Date.now(), last=S.falls[S.falls.length-1];
+      if(!last||now-last.time>3000){
+        S.falls.push({time:now,speed:S.speed,gForce:g.toFixed(2)});
+        S.fc++;
+        $('fat').textContent=`💥 Sturz #${S.fc} erkannt!`;
+        $('fas').textContent=`${g.toFixed(1)}g · ${S.speed.toFixed(1)} km/h`;
+        const el=$('falert'); el.style.display='flex';
+        el.style.animation='shk .5s ease, fup .4s cubic-bezier(.34,1.4,.64,1)';
+        if(navigator.vibrate) navigator.vibrate([200,80,200,80,400]);
+        setTimeout(()=>{el.style.display='none';},5000);
+      }
+    }
+  };
+  if(typeof DeviceMotionEvent.requestPermission==='function'){
+    DeviceMotionEvent.requestPermission().then(r=>{if(r==='granted')window.addEventListener('devicemotion',h,{passive:true});}).catch(()=>{});
   } else {
-    location.reload();
+    window.addEventListener('devicemotion',h,{passive:true});
   }
-};
+}
 
-initMap();
+/* ═══ HISTORY + FOLDERS ═════════════════════════ */
+const COLS=['#0a84ff','#30d158','#ff9f0a','#ff2d55','#bf5af2','#5ac8fa','#ff6b35'];
 
-navigator.geolocation.watchPosition(onPos,console.error,{
-  enableHighAccuracy:true,
-  maximumAge:0,
-  timeout:5000
+function renderFTabs(){
+  const flds=DB.getFolders(), w=$('ftabs'); w.innerHTML='';
+  const all=document.createElement('div'); all.className='ftab'+(S.folderID===null?' on':''); all.textContent='Alle';
+  all.addEventListener('click',()=>{S.folderID=null;renderHistory();});
+  w.appendChild(all);
+  flds.forEach(f=>{
+    const t=document.createElement('div');
+    t.className='ftab'+(S.folderID===f.id?' on':'');
+    t.innerHTML=`<div class="fdot" style="background:${f.color}"></div>${esc(f.name)}`;
+    t.addEventListener('click',()=>{if(S.folderID===f.id)showFolderOpts(f);else{S.folderID=f.id;renderHistory();}});
+    w.appendChild(t);
+  });
+}
+
+function renderHistory(){
+  renderFTabs();
+  const all=DB.getRuns(), runs=S.folderID===null?all:all.filter(r=>r.folderId===S.folderID);
+  const list=$('rlist'); list.innerHTML='';
+  if(!runs.length){list.innerHTML=`<div class="empty"><div class="emico">🌊</div><div>${S.folderID?'Keine Fahrten in diesem Ordner':'Noch keine Fahrten'}</div></div>`;return;}
+  const fm=Object.fromEntries(DB.getFolders().map(f=>[f.id,f]));
+  runs.forEach((r,i)=>{
+    const f=r.folderId?fm[r.folderId]:null;
+    const d=r.distance||0, ds=d<0.1?Math.round(d*1000)+'m':d.toFixed(2), dl=d<0.1?'Meter':'km';
+    const c=document.createElement('div'); c.className='rcard'; c.style.animationDelay=`${i*.04}s`;
+    c.innerHTML=`
+      <div class="rctop">
+        <div class="rcl">
+          ${f?`<div class="rfb"><div class="rfbd" style="background:${f.color}"></div>${esc(f.name)}</div>`:''}
+          <div class="rname">${esc(r.name||'Run')}</div>
+          <div class="rdate">${fmtD(r.startTime)}</div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:6px;flex-shrink:0;margin-left:10px">
+          <button class="rmenu"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
+          <div><div class="rsb">${Math.round(r.maxSpeed||0)}</div><div class="rsu">km/h max</div></div>
+        </div>
+      </div>
+      <div class="rstats">
+        <div class="rs"><div class="rsv">${(r.avgSpeed||0).toFixed(1)}</div><div class="rsl">Ø km/h</div></div>
+        <div class="rs"><div class="rsv">${ds}</div><div class="rsl">${dl}</div></div>
+        <div class="rs"><div class="rsv">${fmtT(r.duration||0)}</div><div class="rsl">Zeit</div></div>
+        <div class="rs" style="color:${(r.falls||[]).length?'var(--red)':'var(--green)'}"><div class="rsv">${(r.falls||[]).length}</div><div class="rsl">Stürze</div></div>
+      </div>`;
+    c.querySelector('.rcl').addEventListener('click',()=>openDetail(r));
+    c.querySelectorAll('.rs').forEach(s=>s.addEventListener('click',()=>openDetail(r)));
+    c.querySelector('.rmenu').addEventListener('click',e=>{e.stopPropagation();showRunOpts(r);});
+    list.appendChild(c);
+  });
+}
+
+$('nfbtn').addEventListener('click',()=>showFolderCreate());
+
+function showFolderCreate(ex){
+  const isEdit=!!ex; let sc=ex?ex.color:COLS[0];
+  const ov=mkOv(`<div class="sh" style="padding:22px 20px calc(22px + var(--sb))">
+    <div style="font-size:19px;font-weight:700;margin-bottom:16px">${isEdit?'Ordner bearbeiten':'Neuer Ordner'}</div>
+    <div class="lbl">Name</div><input class="inp" id="fni" placeholder="z. B. Training" value="${isEdit?esc(ex.name):''}"/>
+    <div class="lbl" style="margin-top:14px">Farbe</div>
+    <div class="swatches">${COLS.map(c=>`<div class="sw${c===sc?' on':''}" data-c="${c}" style="background:${c}"></div>`).join('')}</div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn bg" id="fnc">Abbrechen</button>
+      <button class="btn bp" id="fns">${isEdit?'Speichern':'Erstellen'}</button>
+    </div>
+  </div>`);
+  const inp=ov.querySelector('#fni'); setTimeout(()=>inp.focus(),80);
+  ov.querySelectorAll('.sw').forEach(s=>s.addEventListener('click',()=>{sc=s.dataset.c;ov.querySelectorAll('.sw').forEach(x=>x.classList.remove('on'));s.classList.add('on');}));
+  ov.querySelector('#fnc').addEventListener('click',()=>ov.remove());
+  ov.querySelector('#fns').addEventListener('click',()=>{
+    const nm=inp.value.trim(); if(!nm){inp.style.borderColor='var(--red)';inp.focus();return;}
+    if(isEdit)DB.updateFolder(ex.id,{name:nm,color:sc});else DB.addFolder({id:'f'+Date.now(),name:nm,color:sc});
+    ov.remove();renderHistory();toast(isEdit?'Ordner aktualisiert':'Ordner erstellt');
+  });
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+}
+
+function showFolderOpts(f){
+  const ov=mkOv(`<div class="sh">
+    <div class="shhdr"><div class="shht">${esc(f.name)}</div></div>
+    <div class="shrow" id="for"><div class="shico" style="background:rgba(10,132,255,.12)">✏️</div>Umbenennen</div>
+    <div class="shrow r" id="fod"><div class="shico" style="background:rgba(255,69,58,.1)">🗑️</div>Ordner löschen</div>
+    <div class="shrow c" id="foc">Abbrechen</div>
+  </div>`);
+  ov.querySelector('#for').addEventListener('click',()=>{ov.remove();showFolderCreate(f);});
+  ov.querySelector('#fod').addEventListener('click',()=>{ov.remove();confirm2('Ordner löschen?','Fahrten bleiben erhalten.',()=>{DB.deleteFolder(f.id);if(S.folderID===f.id)S.folderID=null;renderHistory();toast('Ordner gelöscht');});});
+  ov.querySelector('#foc').addEventListener('click',()=>ov.remove());
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+}
+
+function showRunOpts(r){
+  const ov=mkOv(`<div class="sh">
+    <div class="shhdr"><div class="shht">${esc(r.name||'Run')}</div><div class="shhs">${fmtD(r.startTime)}</div></div>
+    <div class="shrow" id="ror"><div class="shico" style="background:rgba(10,132,255,.12)">✏️</div>Umbenennen</div>
+    <div class="shrow" id="rom"><div class="shico" style="background:rgba(255,159,10,.12)">📁</div>In Ordner verschieben</div>
+    <div class="shrow r" id="rod"><div class="shico" style="background:rgba(255,69,58,.1)">🗑️</div>Fahrt löschen</div>
+    <div class="shrow c" id="roc">Abbrechen</div>
+  </div>`);
+  ov.querySelector('#ror').addEventListener('click',()=>{ov.remove();showRename(r);});
+  ov.querySelector('#rom').addEventListener('click',()=>{ov.remove();showFolderPicker(r);});
+  ov.querySelector('#rod').addEventListener('click',()=>{ov.remove();confirm2('Fahrt löschen?','Nicht rückgängig machbar.',()=>{DB.deleteRun(r.id);renderHistory();toast('Fahrt gelöscht');});});
+  ov.querySelector('#roc').addEventListener('click',()=>ov.remove());
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+}
+
+function showRename(r){
+  const ov=mkOv(`<div class="sh" style="padding:22px 20px calc(22px + var(--sb))">
+    <div style="font-size:19px;font-weight:700;margin-bottom:14px">Umbenennen</div>
+    <input class="inp" id="rni" value="${esc(r.name||'Run')}"/>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn bg" id="rnc">Abbrechen</button>
+      <button class="btn bp" id="rns">Speichern</button>
+    </div>
+  </div>`);
+  const inp=ov.querySelector('#rni'); setTimeout(()=>{inp.focus();inp.select();},80);
+  ov.querySelector('#rnc').addEventListener('click',()=>ov.remove());
+  ov.querySelector('#rns').addEventListener('click',()=>{const nm=inp.value.trim();if(!nm)return;DB.updateRun(r.id,{name:nm});ov.remove();renderHistory();toast('Umbenannt');});
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+}
+
+function showFolderPicker(r){
+  const flds=DB.getFolders();
+  const rows=flds.map(f=>`<div class="shrow fpr" data-id="${f.id}"><div class="shdot" style="background:${f.color}"></div>${esc(f.name)}${r.folderId===f.id?'<div class="shchk" style="margin-left:auto">✓</div>':''}</div>`).join('');
+  const ov=mkOv(`<div class="sh">
+    <div class="shhdr"><div class="shht">In Ordner verschieben</div></div>
+    <div class="shrow fpr" data-id="__none__"><div class="shdot" style="background:#48484a"></div>Kein Ordner${!r.folderId?'<div class="shchk" style="margin-left:auto;background:#48484a">✓</div>':''}</div>
+    ${rows}
+    <div class="shrow" id="fpn"><div class="shico">➕</div>Neuen Ordner erstellen</div>
+    <div class="shrow c" id="fpc">Abbrechen</div>
+  </div>`);
+  ov.querySelectorAll('.fpr').forEach(row=>row.addEventListener('click',()=>{
+    const id=row.dataset.id; DB.updateRun(r.id,{folderId:id==='__none__'?null:id});
+    ov.remove(); renderHistory(); toast(`Verschoben → ${id==='__none__'?'Allgemein':flds.find(f=>f.id===id)?.name}`);
+  }));
+  ov.querySelector('#fpn').addEventListener('click',()=>{ov.remove();showFolderCreate();});
+  ov.querySelector('#fpc').addEventListener('click',()=>ov.remove());
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+}
+
+/* ═══ DETAIL ════════════════════════════════════ */
+function openDetail(r){
+  const d=r.distance||0, ds=d<0.1?Math.round(d*1000)+'m':d.toFixed(2), dl=d<0.1?'Meter':'Distanz km';
+  const hf=(r.falls||[]).length>0, ht=(r.trackPoints||[]).length>2;
+  $('dtitle').textContent=r.name||'Run'; $('ddate').textContent=fmtD(r.startTime);
+  $('dcont').innerHTML=`
+    <div class="dhero" style="animation:fup .32s cubic-bezier(.34,1.28,.64,1) both">
+      <div class="dspd">${Math.round(r.maxSpeed||0)}</div>
+      <div class="dspdl">km/h Maximalgeschwindigkeit</div>
+    </div>
+    <div class="dgrid" style="animation:fup .32s .05s cubic-bezier(.34,1.28,.64,1) both">
+      <div class="dst"><div class="dstv">${(r.avgSpeed||0).toFixed(1)}</div><div class="dstl">Ø Geschwindigkeit</div></div>
+      <div class="dst"><div class="dstv">${ds}</div><div class="dstl">${dl}</div></div>
+      <div class="dst"><div class="dstv">${fmtT(r.duration||0)}</div><div class="dstl">Fahrzeit</div></div>
+      <div class="dst" style="border-color:${hf?'rgba(255,69,58,.25)':'rgba(48,209,88,.25)'}">
+        <div class="dstv" style="color:${hf?'var(--red)':'var(--green)'}">${(r.falls||[]).length}</div>
+        <div class="dstl">Stürze</div>
+      </div>
+    </div>
+    ${(r.speedHistory||[]).length>5?`<div class="slbl">Geschwindigkeitsprofil</div><div class="cwrap" style="animation:fup .32s .1s cubic-bezier(.34,1.28,.64,1) both"><canvas id="dchrt" style="width:100%;height:80px;display:block"></canvas></div>`:''}
+    ${ht?`<div class="slbl">Strecke</div><div class="dmw" style="animation:fup .32s .13s cubic-bezier(.34,1.28,.64,1) both"><div id="dmap"></div></div>`:''}
+    ${hf?`<div class="slbl">Stürze</div><div class="flist">${r.falls.map((f,i)=>`<div class="fit" style="animation:fup .32s ${.16+i*.04}s cubic-bezier(.34,1.28,.64,1) both"><div style="font-size:22px">💥</div><div><div class="fitt">Sturz #${i+1}</div><div class="fits">${new Date(f.time).toLocaleTimeString('de-DE')} · ${(f.speed||0).toFixed(1)} km/h · ${f.gForce||'–'}g</div></div></div>`).join('')}</div>`:''}
+    <button class="delbtn" id="ddel"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>Fahrt löschen</button>`;
+  $('pd').style.display='block';
+  requestAnimationFrame(()=>{
+    if(ht) initDMap(r.trackPoints,r.falls||[]);
+    const cv=$('dchrt'); if(cv) setTimeout(()=>drawChart(cv,r.speedHistory),120);
+  });
+  $('ddel').addEventListener('click',()=>confirm2('Fahrt löschen?','Nicht rückgängig machbar.',()=>{DB.deleteRun(r.id);closeDetail();renderHistory();toast('Fahrt gelöscht');}));
+}
+
+function closeDetail(){if(S.dmap){S.dmap.remove();S.dmap=null;}$('pd').style.display='none';}
+$('bbtn').addEventListener('click',closeDetail);
+
+function initDMap(pts,falls){
+  const el=$('dmap'); if(!el||pts.length<2) return;
+  if(S.dmap){S.dmap.remove();S.dmap=null;}
+  const map=L.map(el,{zoomControl:true,attributionControl:false});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+  S.dmap=map;
+  // Farbige Segmente auch in der Detail-Ansicht
+  for(let i=1;i<pts.length;i++){
+    const spd=pts[i].speed||0;
+    L.polyline([[pts[i-1].lat,pts[i-1].lon],[pts[i].lat,pts[i].lon]],{
+      color:spdColor(spd),weight:4.5,opacity:.95,lineCap:'round'
+    }).addTo(map);
+  }
+  // Wenn keine Speed-Daten: einfache blaue Linie als Fallback
+  if(!pts[1]||pts[1].speed===undefined){
+    const ll=pts.map(p=>[p.lat,p.lon]);
+    L.polyline(ll,{color:'#0a84ff',weight:4.5,opacity:.95,lineCap:'round'}).addTo(map);
+  }
+  const ll=pts.map(p=>[p.lat,p.lon]);
+  const mk=(col,sz=11)=>L.divIcon({html:`<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${col};border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2],className:''});
+  L.marker(ll[0],{icon:mk('#30d158')}).addTo(map).bindPopup('Start');
+  L.marker(ll[ll.length-1],{icon:mk('#ff453a')}).addTo(map).bindPopup('Ende');
+  falls.forEach(f=>{const cp=pts.reduce((a,b)=>Math.abs(b.time-f.time)<Math.abs(a.time-f.time)?b:a);L.marker([cp.lat,cp.lon],{icon:L.divIcon({html:'<div style="font-size:18px;line-height:1">💥</div>',iconSize:[20,20],iconAnchor:[10,10],className:''})}).addTo(map);});
+  const bounds=L.latLngBounds(ll);
+  map.fitBounds(bounds,{padding:[20,20]});
+  setTimeout(()=>{map.invalidateSize();map.fitBounds(bounds,{padding:[20,20]});},300);
+}
+
+/* ═══ CHART ══════════════════════════════════════ */
+function drawChart(cv,hist){
+  if(!cv||!hist||hist.length<2) return;
+  const ctx=cv.getContext('2d'), W=cv.offsetWidth||300, H=cv.offsetHeight||80;
+  cv.width=W*devicePixelRatio; cv.height=H*devicePixelRatio;
+  ctx.scale(devicePixelRatio,devicePixelRatio);
+  const vals=hist.map(p=>p.s!==undefined?p.s:p.speed||0), mx=Math.max(...vals,1);
+  const step=Math.max(1,Math.floor(vals.length/120)), pts=vals.filter((_,i)=>i%step===0);
+  const grad=ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'rgba(10,132,255,.35)'); grad.addColorStop(1,'rgba(10,132,255,0)');
+  ctx.clearRect(0,0,W,H);
+  ctx.beginPath(); pts.forEach((v,i)=>{const x=(i/(pts.length-1))*W,y=H-(v/mx)*(H-6);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}); ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
+  ctx.beginPath(); pts.forEach((v,i)=>{const x=(i/(pts.length-1))*W,y=H-(v/mx)*(H-6);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}); ctx.strokeStyle='#0a84ff'; ctx.lineWidth=2; ctx.stroke();
+}
+
+/* ═══ PROFIL & SETTINGS ═════════════════════════ */
+function renderSettings(){
+  const p=DB.getProfile(), runs=DB.getRuns(), dist=runs.reduce((a,r)=>a+(r.distance||0),0);
+  const av=$('sav');
+  av.textContent=p.initial||'?';
+  av.style.background=`linear-gradient(135deg,${p.color},${shd(p.color,-40)})`;
+  av.style.boxShadow=`0 4px 20px ${p.color}55`;
+  $('snm').textContent=p.name;
+  $('sst').textContent=`${runs.length} Fahrten · ${dist<0.1?Math.round(dist*1000)+'m':dist.toFixed(1)+' km'}`;
+}
+
+$('pcrd').addEventListener('click',()=>showProfileEdit());
+function showProfileEdit(){
+  const p=DB.getProfile(); let sc=p.color;
+  const ov=mkOv(`<div class="sh" style="padding:22px 20px calc(22px + var(--sb))">
+    <div style="font-size:19px;font-weight:700;margin-bottom:16px">Profil bearbeiten</div>
+    <div class="lbl">Name</div><input class="inp" id="pni" value="${esc(p.name)}" style="margin-bottom:12px"/>
+    <div class="lbl">Kürzel (1–2 Zeichen)</div><input class="inp" id="pii" value="${esc(p.initial)}" maxlength="2" style="margin-bottom:12px"/>
+    <div class="lbl">Farbe</div>
+    <div class="swatches">${COLS.map(c=>`<div class="sw${c===sc?' on':''}" data-c="${c}" style="background:${c}"></div>`).join('')}</div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn bg" id="pec">Abbrechen</button>
+      <button class="btn bp" id="pes">Speichern</button>
+    </div>
+  </div>`);
+  setTimeout(()=>ov.querySelector('#pni').focus(),80);
+  ov.querySelectorAll('.sw').forEach(s=>s.addEventListener('click',()=>{sc=s.dataset.c;ov.querySelectorAll('.sw').forEach(x=>x.classList.remove('on'));s.classList.add('on');}));
+  ov.querySelector('#pec').addEventListener('click',()=>ov.remove());
+  ov.querySelector('#pes').addEventListener('click',()=>{
+    const nm=ov.querySelector('#pni').value.trim()||'Fahrer';
+    const init=(ov.querySelector('#pii').value.trim()||nm[0]).toUpperCase().slice(0,2);
+    DB.saveProfile({...p,name:nm,initial:init,color:sc}); ov.remove(); renderSettings(); toast('Profil gespeichert ✓');
+  });
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+}
+
+$('sexport').addEventListener('click',()=>{
+  const b=new Blob([JSON.stringify(DB.exportAll(),null,2)],{type:'application/json'});
+  const u=URL.createObjectURL(b), a=document.createElement('a');
+  a.href=u; a.download=`wakeski-${Date.now()}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(u);
+  toast('Export gestartet');
 });
+$('simport').addEventListener('click',()=>$('fimp').click());
+$('fimp').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader(); r.onload=ev=>{
+    try{const d=JSON.parse(ev.target.result);if(!d.runs&&!d.profile)throw 0;confirm2('Daten importieren?',`${(d.runs||[]).length} Fahrten werden geladen.`,()=>{DB.importAll(d);renderSettings();toast('Import abgeschlossen');});}
+    catch{toast('❌ Ungültige Datei');}
+    e.target.value='';
+  }; r.readAsText(f);
+});
+$('sclear').addEventListener('click',()=>confirm2('Alle Fahrten löschen?','Ordner und Profil bleiben.',()=>{DB.clearRuns();renderSettings();toast('Alle Fahrten gelöscht');}));
+
+/* ═══ CONFIRM ════════════════════════════════════ */
+function confirm2(t,s,fn){
+  $('ctxt').textContent=t; $('cstxt').textContent=s; $('cov').style.display='flex';
+  const hide=()=>$('cov').style.display='none';
+  const y=$('cyes'),n=$('cno'), yc=y.cloneNode(true),nc=n.cloneNode(true);
+  y.parentNode.replaceChild(yc,y); n.parentNode.replaceChild(nc,n);
+  $('cyes').addEventListener('click',()=>{hide();fn();}); $('cno').addEventListener('click',hide);
+}
+
+/* ═══ OVERLAY HELPER ════════════════════════════ */
+function mkOv(html){const o=document.createElement('div');o.className='ov';o.innerHTML=html;document.body.appendChild(o);return o;}
+
+/* ═══ WATER LOCK ════════════════════════════════ */
+$('lbtn').addEventListener('click',()=>{$('wl').classList.add('on');S.locked=true;if(navigator.vibrate)navigator.vibrate(60);});
+let _lt=null; const wb=$('wlbtn'), wp=$('wlprog');
+wb.addEventListener('pointerdown',e=>{
+  if(!S.locked)return; e.preventDefault();
+  wb.classList.add('p'); wp.style.width='0'; wp.className='wlprog go';
+  _lt=setTimeout(()=>{$('wl').classList.remove('on');S.locked=false;wb.classList.remove('p');wp.className='wlprog';if(navigator.vibrate)navigator.vibrate([80,40,80]);},2000);
+});
+['pointerup','pointerleave','pointercancel'].forEach(ev=>wb.addEventListener(ev,()=>{clearTimeout(_lt);_lt=null;wb.classList.remove('p');wp.className='wlprog';}));
+
+/* ═══ AUTO SESSION SAVE ═════════════════════════ */
+setInterval(()=>{if(!S.tracking)return;DB.saveSession({maxSpd:S.maxSpd,avgSpd:S.avgSpd,dist:S.dist,elapsed:S.elapsed,t0:S.t0});},10000);
+
+/* ═══ APP START ══════════════════════════════════
+   WICHTIG: initMap() wird hier aufgerufen,
+   damit Leaflet die Container-Größe korrekt lesen kann.
+   Der Container ist sichtbar, weil wir ihn mit visibility:hidden
+   (statt display:none) versteckt haben – so hat er trotzdem eine Größe.
+════════════════════════════════════════════════ */
+function launchApp(){
+  $('sp').style.display='none';
+  const app=$('app'); app.style.display='flex'; app.style.flexDirection='column';
+  goPage('track');
+  initGPS();
+  initMotion();
+
+  // Map NACH dem ersten Browser-Paint initialisieren (setTimeout 150ms).
+  // #lmap hat per CSS immer height:220px → Leaflet liest korrekte Größe.
+  // Der Container ist via .mwrap CSS visuell versteckt (opacity:0, max-height:0)
+  // ohne die tatsächliche Größe zu ändern.
+  setTimeout(()=>{ initMap(); }, 150);
+
+  // Session-Wiederherstellung
+  const sess=DB.getSession();
+  if(sess&&sess.maxSpd){S.maxSpd=sess.maxSpd||0;S.dist=sess.dist||0;updateDOM();}
+}
+
+$('perm-btn').addEventListener('click',async()=>{
+  const b=$('perm-btn'); b.disabled=true;
+  b.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite"><path d="M12 2a10 10 0 0110 10"/></svg> Aktiviere…';
+  for(const E of[window.DeviceMotionEvent,window.DeviceOrientationEvent]){
+    if(typeof E?.requestPermission==='function') await E.requestPermission().catch(()=>{});
+  }
+  setTimeout(()=>{$('sp').style.opacity='0';$('sp').style.transition='opacity .35s';setTimeout(launchApp,350);},400);
+});
+
+// GPS bereits erteilt → direkt starten
+(async()=>{
+  if(!navigator.permissions) return;
+  try{const r=await navigator.permissions.query({name:'geolocation'});if(r.state==='granted')launchApp();}catch{}
+})();
 </script>
 
 </body>
